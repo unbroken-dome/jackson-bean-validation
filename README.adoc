@@ -1,0 +1,311 @@
+= Jackson Bean Validation Module
+:version: 0.1.0
+
+This is a https://github.com/FasterXML/jackson[Jackson] extension to perform
+https://beanvalidation.org/2.0/[Java Bean Validation] during deserialization.
+
+== The Problem
+
+This module is aimed mostly at REST APIs that should validate incoming JSON request
+bodies, but it may be useful in other scenarios.
+
+Imagine the following JSON request body:
+
+[source,json]
+----
+{
+    "firstName": "John",
+    "lastName": "Doe",
+    "dateOfBirth": "1983-01-25"
+}
+----
+
+In application code, This might be mapped to the following Java class with Jackson
+and validation constraints:
+
+[source,java]
+----
+public class PersonRequest {
+
+    @NotEmpty
+    String firstName;
+
+    @NotEmpty
+    String lastName;
+
+    @Past
+    LocalDate dateOfBirth; // requires JavaTimeModule
+
+    // Getters and setters omitted
+}
+----
+
+This works in the success case, but there could be a number of things that are wrong
+about the request (assuming that it is syntactically correct JSON):
+
+* Any of the properties might be missing.
+* Any of the properties might have a wrong type in JSON (e.g. a `boolean`)
+* The `dateOfBirth` might be in a format that is not parseable to a `LocalDate`.
+* Any of the validation constraints might be violated.
+
+All of these cases are typically handled by sending a `400 Bad Request` response back to the client,
+ideally with a description of _all_ that was wrong with the request. This is especially important if such
+errors should be displayed on a form in a UI.
+
+In application code, this is most often handled with a two-step process:
+
+. Deserialize the JSON payload into the Java object.
+. Run the Bean `Validator` on it to find any constraint violations.
+
+The big problem is that if step 1 fails (for example because `dateOfBirth` was not parseable to a `LocalDate`),
+Jackson will throw an exception, and the response will only contain that single error information. Also, from the
+Jackson exception it can be hard to pinpoint the exact property in the request that had a bad value. The client
+will have to fix that one error and try again, only to find out that there are more errors that had not been reported
+earlier.
+
+For example, with the following request:
+
+[source,json]
+----
+{
+    "firstName": "",
+    "dateOfBirth": "01-25"
+}
+----
+
+This should ideally return a `400 Bad Request` response informing about 3 violations (`firstName` must not be empty,
+`lastName` is missing, and `dateOfBirth` has a wrong format). However, since Jackson throws a `MismatchedInputException`
+on parsing the `dateOfBirth`, the client won't even get to see the `firstName` and `lastName` violations until they try
+again with a correct `dateOfBirth`.
+
+Obviously, the only solution to this is to merge steps 1 and 2 into one, and perform the validation immediately
+_during_ deserialization. This is where this module comes in.
+
+
+== Usage
+
+The module library is available on https://bintray.com/bintray/jcenter[JCenter].
+
+Add the following dependency to your build script:
+
+[source,groovy,subs="+attributes"]
+.Gradle (build.gradle)
+----
+implementation 'org.unbroken-dome.jackson-bean-validation:jackson-bean-validation:{version}'
+----
+
+[source,xml,subs="+attributes"]
+.Maven (pom.xml)
+----
+<dependency>
+    <groupId>org.unbroken-dome.jackson-bean-validation</groupId>
+    <artifactId>jackson-bean-validation</artifactId>
+    <version>{version}</version>
+</dependency>
+----
+
+In Java code, register an instance `BeanValidationModule` with your `ObjectMapper`. It also
+requires a `ValidatorFactory` instance for performing validation. (For example,
+http://hibernate.org/validator/[Hibernate Validator] is a widespread implementation of Bean Validation).
+
+[source,java]
+----
+
+ValidatorFactory validatorFactory = Validation.byDefaultProvider()
+    .configure()
+    .buildValidatorFactory();
+
+BeanValidationModule module = new BeanValidationModule(validatorFactory);
+
+ObjectMapper objectMapper = new ObjectMapper()
+    .registerModule(module);
+----
+
+
+Annotate all classes that should be validated with `@JsonValidated`. If this annotation is not
+present, no validation will be performed.
+
+[source,java]
+----
+@JsonValidated
+public class PersonRequest {
+
+    @NotEmpty
+    String firstName;
+
+    @NotEmpty
+    String lastName;
+
+    @Past
+    LocalDate dateOfBirth;
+
+    // Getters and setters omitted
+}
+----
+
+
+== Handling Violations
+
+Deserialization of this object, with the `BeanValidationModule` activated, might now throw a
+`ConstraintViolationException` that contains _all_ the violations of the input document, including JSON
+deserialization issues as well as constraint violations.
+
+
+[NOTE]
+.Property Paths
+====
+All property paths in the `ConstraintViolation` objects refer to the property names in the input JSON, _not_
+the Java bean property names. They might be different if you use `@JsonNaming` with a custom name mapping strategy,
+or `@JsonProperty` with explicit names.
+
+The reason for this is that we're conceptually validating the JSON object and not the Java bean (which is just being
+constructed).
+====
+
+
+To deal with errors that would otherwise result in exceptions thrown by Jackson, the module introduces two "pseudo"
+constraints that are used for reporting these as constraint violations (even if they are not placed on the properties).
+
+
+=== `JsonValidInput`
+
+The module introduces a pseudo-constraint `JsonValidInput` that will be reported as violated whenever Jackson
+would otherwise throw a `MismatchedInputException`.
+
+In the above examples, a value for `dateOfBirth` that cannot be parsed to a `LocalDate` would be reported as a
+violation of the `JsonValidInput` constraint, including the path to that property.
+
+You can also place `@JsonValidValue` directly on a property in case you want a customized validation message:
+
+[source,java]
+----
+@JsonValidValue(message = "Please enter a date in the format YYYY-MM-DD")
+@Past
+LocalDate dateOfBirth;
+----
+
+Note that `@JsonValidValue` is not an actual constraint annotation (it is not meta-annotated with `@Constraint`);
+placing it on a property is only for customization of the constraint parameters.
+
+
+=== `JsonRequired`
+
+The second pseudo-constraint is `JsonRequired`; it is violated if there are any _missing_ properties that
+are marked as required using the `@JsonProperty` annotation:
+
+[source,java]
+----
+public class PersonRequest {
+
+    @JsonCreator
+    public PersonRequest(
+        @JsonProperty(value="firstName", required=true) String firstName
+        @JsonProperty(value="lastName", required=true) String lastName,
+        @JsonProperty(value="dateOfBirth") LocalDate dateOfBirth) {
+        // ...
+    }
+}
+----
+
+In this example, if `firstName` and/or `lastName` are missing in the input, they would be reported as a violation
+to `JsonRequired`.
+
+NOTE: `JsonRequired` violations are not triggered if the value is present in the JSON input but explicitly set to
+`null`. Use the standard `@NotNull` constraint to catch this case.
+
+Again, you could place `@JsonRequired` directly on a property; this has the same effect as
+`@JsonProperty(required = true)` but also allows you to customize the validation message.
+
+
+=== Customizing Validation Messages
+
+For `JsonValidInput` and `JsonRequired`, there are three ways to provide validation messages (in order of precedence):
+
+* *Property level*: Put the annotation directly on the validated property, and set its `message` argument
+  (as described above).
+
+* *Class level*: Set the `validInputMessage` or `requiredMessage` on the `@JsonValidated` annotation:
++
+[source,java]
+----
+@JsonValidated(
+    validInputMessage="is not valid",
+    requiredMessage="is required")
+public class PersonRequest {
+    // ...
+}
+----
+
+* *Global level*: Put the messages in your `ValidationMessages.properties` (or locale-specific variants):
++
+[source,java-properties]
+.ValidationMessages.properties
+----
+org.unbrokendome.jackson.beanvalidation.JsonValidInput.message=is not valid
+org.unbrokendome.jackson.beanvalidation.JsonRequired.message=is required
+----
++
+Note that the global messages should _always_ be configured; the module library cannot provide defaults because
+there cannot be a second `ValidationMessages.properties` on the classpath.
+
+
+
+== Kotlin Support
+
+The module should work well with Kotlin, and together with the `KotlinModule` from `jackson-module-kotlin`.
+I would recommend to always use `data` classes where all properties are initialized in the constructor.
+
+It is especially useful to perform `@NotNull` checks on constructor arguments that are _not_ nullable in Kotlin,
+because the validation happens before the constructor is called:
+
+[source,kotlin]
+----
+data class PersonRequest(
+    @param:NotNull val firstName: String,
+    @param:NotNull val lastName: String,
+    @param:Past val dateOfBirth: LocalDate)
+----
+
+So, you no longer need to use `String?` just to validate `@NotNull` and use those ugly double exclamation
+marks everywhere.
+
+
+=== Handling of Required Parameters and Primitives
+
+The standard `KotlinModule` automatically treats all constructor parameters as required if they are not marked as
+nullable (e.g. `String` instead of `String?`).
+
+However, for primitive types this behavior only applies if the deserialization feature `FAIL_ON_NULL_FOR_PRIMITIVES`
+is enabled (it is disabled by default). Otherwise, `null` or missing values are mapped to the default value of the
+type (e.g. `0` for integers) even if the type is not nullable.
+
+I would recommend to enable `FAIL_ON_NULL_FOR_PRIMITIVES` when using Kotlin together with this module.
+
+
+=== Late-init Properties
+
+Kotlin's `lateinit` properties are currently not well supported, and probably won't be.
+They are not very suitable for validation anyway, as it is impossible to
+check that the property has been set without triggering the `UninitializedPropertyAccessException`.
+(At least not without having `kotlin-reflect` on the classpath, but this would add a dependency on Kotlin libraries
+that would otherwise be unnecessary).
+
+Please avoid using `lateinit` properties in classes that should be deserialized from JSON.
+
+
+== Jackson Version Compatibility
+
+The module requires Jackson 2.9.x; it has been tested to be compatible with all 2.9.x versions up to 2.9.8.
+It does not work with Jackson 2.8.x.
+
+
+== Limitations and Considerations
+
+* Jackson handles a plethora of corner-cases and custom annotations, and probably many of them are not working
+  properly. The module _should_ work for the most common cases (vanilla beans or constructor properties). If you
+  spot an error with one of the more obscure Jackson features, please consider filing an issue.
+
+* Jackson views are currently not supported (they might just work, but lacking more extensive testing).
+
+* Validation groups are currently not supported - mostly because there is no nice way of passing them to the
+  `ObjectMapper` when deserializing.
