@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.deser.BeanDeserializer;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerBase;
@@ -11,7 +12,6 @@ import com.fasterxml.jackson.databind.deser.CreatorProperty;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
 import com.fasterxml.jackson.databind.deser.impl.NullsConstantProvider;
 import com.fasterxml.jackson.databind.deser.impl.PropertyBasedCreator;
-import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
@@ -28,11 +28,13 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import javax.validation.metadata.ConstraintDescriptor;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -62,21 +64,52 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
     public void resolve(DeserializationContext ctxt) throws JsonMappingException {
         super.resolve(ctxt);
 
-        /*
-        if (_propertyBasedCreator != null && _valueInstantiator instanceof StdValueInstantiator) {
+        List<SettableBeanProperty> toBeWrapped = null;
+        List<SettableBeanProperty> wrappedProperties = null;
 
-            SettableBeanProperty[] creatorProperties =
-                    _propertyBasedCreator.properties().toArray(new SettableBeanProperty[0]);
-            // properties() returns properties from its lookup hashmap rather than its _allproperties,
-            // so they won't be sorted
-            Arrays.sort(creatorProperties, Comparator.comparing(SettableBeanProperty::getCreatorIndex));
+        // If we have any bean-typed properties annotated with @JsonValidated (but not the property type),
+        // wrap them so they can use a ValidatingBeanDeserializer too
+        for (SettableBeanProperty beanProperty : _beanProperties) {
 
-            _propertyBasedCreator = PropertyBasedCreator.construct(ctxt,
-                    new ValidatingValueInstantiator(_valueInstantiator, validatorFactory, features),
-                    creatorProperties,
-                    _beanProperties);
+            JsonValidated annotation = beanProperty.getAnnotation(JsonValidated.class);
+            if (annotation != null) {
+                JsonDeserializer<Object> valueDeserializer = beanProperty.getValueDeserializer();
+                if (valueDeserializer instanceof BeanDeserializerBase &&
+                        // no need to change if the property is already using ValidatingBeanDeserializer
+                        // (i.e. the type is also annotated)
+                        !(valueDeserializer instanceof ValidatingBeanDeserializer)) {
+
+                    if (toBeWrapped == null) {
+                        toBeWrapped = new ArrayList<>(_beanProperties.size());
+                        wrappedProperties = new ArrayList<>(_beanProperties.size());
+                    }
+                    toBeWrapped.add(beanProperty);
+                    wrappedProperties.add(beanProperty.withValueDeserializer(
+                            new ValidatingBeanDeserializer((BeanDeserializerBase) valueDeserializer,
+                                    validatorFactory, features, annotation)));
+                }
+            }
         }
-        */
+
+        if (toBeWrapped != null) {
+            SettableBeanProperty[] creatorProperties = null;
+
+            if (_propertyBasedCreator != null) {
+                creatorProperties = _propertyBasedCreator.properties().toArray(new SettableBeanProperty[0]);
+                Arrays.sort(creatorProperties, Comparator.comparing(SettableBeanProperty::getCreatorIndex));
+            }
+
+            for (int i = 0, len = toBeWrapped.size(); i < len; i++) {
+                _replaceProperty(_beanProperties, creatorProperties,
+                        toBeWrapped.get(i), wrappedProperties.get(i));
+            }
+
+            if (_propertyBasedCreator != null) {
+                assert creatorProperties != null;
+                _propertyBasedCreator = PropertyBasedCreator.construct(ctxt, _valueInstantiator,
+                        creatorProperties, _beanProperties);
+            }
+        }
     }
 
 
