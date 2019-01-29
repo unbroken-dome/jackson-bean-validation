@@ -50,8 +50,10 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
         }
 
         ValueInstantiator valueInstantiator = builder.getValueInstantiator();
-        builder.setValueInstantiator(new ValidatingValueInstantiator(
-                valueInstantiator, validatorFactory, features));
+        if (valueInstantiator instanceof StdValueInstantiator) {
+            builder.setValueInstantiator(new ValidatingValueInstantiator(
+                    (StdValueInstantiator) valueInstantiator, validatorFactory, features));
+        }
 
         return builder;
     }

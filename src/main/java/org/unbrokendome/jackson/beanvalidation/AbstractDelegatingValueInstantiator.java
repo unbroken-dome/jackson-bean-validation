@@ -6,18 +6,20 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
 import com.fasterxml.jackson.databind.deser.ValueInstantiator;
 import com.fasterxml.jackson.databind.deser.impl.PropertyValueBuffer;
+import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
 import com.fasterxml.jackson.databind.introspect.AnnotatedParameter;
 import com.fasterxml.jackson.databind.introspect.AnnotatedWithParams;
 
 import java.io.IOException;
 
 
-abstract class AbstractDelegatingValueInstantiator extends ValueInstantiator {
+abstract class AbstractDelegatingValueInstantiator extends StdValueInstantiator {
 
     private final ValueInstantiator delegate;
 
 
-    AbstractDelegatingValueInstantiator(ValueInstantiator delegate) {
+    AbstractDelegatingValueInstantiator(StdValueInstantiator delegate) {
+        super(delegate);
         this.delegate = delegate;
     }
 

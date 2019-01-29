@@ -2,13 +2,16 @@ package org.unbrokendome.jackson.beanvalidation;
 
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
-import com.fasterxml.jackson.databind.deser.ValueInstantiator;
 import com.fasterxml.jackson.databind.deser.impl.PropertyValueBuffer;
+import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
+import com.fasterxml.jackson.databind.introspect.AnnotatedConstructor;
+import com.fasterxml.jackson.databind.introspect.AnnotatedWithParams;
 import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
 import org.unbrokendome.jackson.beanvalidation.path.PathUtils;
 import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import javax.validation.ElementKind;
@@ -31,7 +34,7 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
     private final BeanValidationFeatureSet features;
 
 
-    ValidatingValueInstantiator(ValueInstantiator delegate, ValidatorFactory validatorFactory,
+    ValidatingValueInstantiator(StdValueInstantiator delegate, ValidatorFactory validatorFactory,
                                 BeanValidationFeatureSet features) {
         super(delegate);
         this.validatorFactory = validatorFactory;
@@ -178,5 +181,67 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
     @Override
     public Object createFromObjectWith(DeserializationContext ctxt, Object[] args) throws IOException {
         return createFromObjectWith(ctxt, args, Collections.emptyMap());
+    }
+
+
+    @Override
+    public Object createFromString(DeserializationContext ctxt, String value) throws IOException {
+        validateSimpleConstructor(_fromStringCreator, value);
+        return super.createFromString(ctxt, value);
+    }
+
+
+    @Override
+    public Object createFromInt(DeserializationContext ctxt, int value) throws IOException {
+        validateSimpleConstructor(_fromIntCreator, value);
+        return super.createFromInt(ctxt, value);
+    }
+
+
+    @Override
+    public Object createFromLong(DeserializationContext ctxt, long value) throws IOException {
+        validateSimpleConstructor(_fromLongCreator, value);
+        return super.createFromLong(ctxt, value);
+    }
+
+
+    @Override
+    public Object createFromDouble(DeserializationContext ctxt, double value) throws IOException {
+        validateSimpleConstructor(_fromDoubleCreator, value);
+        return super.createFromDouble(ctxt, value);
+    }
+
+
+    @Override
+    public Object createFromBoolean(DeserializationContext ctxt, boolean value) throws IOException {
+        validateSimpleConstructor(_fromBooleanCreator, value);
+        return super.createFromBoolean(ctxt, value);
+    }
+
+
+    private void validateSimpleConstructor(@Nullable AnnotatedWithParams creator, @Nullable Object value) {
+        if (creator instanceof AnnotatedConstructor) {
+            ExecutableValidator validator = validatorFactory.getValidator().forExecutables();
+            Set<? extends ConstraintViolation<?>> violations = validator.validateConstructorParameters(
+                    ((AnnotatedConstructor) _fromStringCreator).getAnnotated(),
+                    new Object[]{value});
+
+            if (violations != null && !violations.isEmpty()) {
+
+                // The value should appear as the actual object in the validation path, we don't want any
+                // ".value" or ".arg0" appended to it - so strip it down to the BEAN node
+                Path strippedPath = PathBuilder.create().appendBeanNode().build();
+
+                Set<ConstraintViolation<?>> mappedViolations = new LinkedHashSet<>(violations.size());
+
+                for (ConstraintViolation<?> violation : violations) {
+                    ConstraintViolation<?> mappedViolation =
+                            ConstraintViolationUtils.withNewPath(violation, strippedPath);
+                    mappedViolations.add(mappedViolation);
+                }
+
+                throw new ConstraintViolationException(mappedViolations);
+            }
+        }
     }
 }
