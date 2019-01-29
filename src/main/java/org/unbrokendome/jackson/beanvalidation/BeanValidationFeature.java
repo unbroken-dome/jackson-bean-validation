@@ -6,7 +6,8 @@ import java.util.EnumSet;
 public enum BeanValidationFeature {
 
     REPORT_BEAN_PROPERTY_PATHS_IN_VIOLATIONS(false),
-    REPORT_MISSING_REQUIRED_AS_NOTNULL_VIOLATION(false);
+    REPORT_MISSING_REQUIRED_AS_NOTNULL_VIOLATION(false),
+    MAP_CREATOR_VIOLATIONS_TO_PROPERTY_VIOLATIONS(true);
 
 
     private final boolean enabledByDefault;

@@ -1,25 +1,51 @@
 package org.unbrokendome.jackson.beanvalidation.path;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.validation.Path;
+import java.lang.reflect.Constructor;
+import java.util.Arrays;
+import java.util.List;
+
 
 @SuppressWarnings("UnusedReturnValue")
 public interface PathBuilder {
 
+    @Nonnull
     PathBuilder appendPath(Path path);
 
-    PathBuilder appendProperty(String name);
+    @Nonnull
+    PathBuilder appendNode(Path.Node node);
 
-    PathBuilder appendIndexedProperty(String name, int index);
+    @Nonnull
+    PathBuilder appendBeanNode();
 
-    PathBuilder appendKeyedProperty(String name, Object key);
+    @Nonnull
+    PathBuilder appendConstructor(String name, List<Class<?>> parameterTypes);
 
-    Path build();
-
-    static PathBuilder create() {
-        return new PathBuilderImpl();
+    @Nonnull
+    default PathBuilder appendConstructor(Constructor<?> constructor) {
+        return appendConstructor(constructor.getName(), Arrays.asList(constructor.getParameterTypes()));
     }
 
-    static PathBuilder fromPath(Path path) {
-        return create().appendPath(path);
+    @Nonnull
+    default PathBuilder appendProperty(String name) {
+        return appendProperty(name, null, null);
+    }
+
+
+    @Nonnull
+    PathBuilder appendProperty(String name, @Nullable Integer index, @Nullable Object key);
+
+
+    @Nonnull
+    PathBuilder appendParameter(String name, int parameterIndex);
+
+    @Nonnull
+    Path build();
+
+    @Nonnull
+    static PathBuilder create() {
+        return new PathBuilderImpl();
     }
 }

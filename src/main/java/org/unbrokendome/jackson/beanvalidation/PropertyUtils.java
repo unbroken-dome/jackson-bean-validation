@@ -1,14 +1,13 @@
 package org.unbrokendome.jackson.beanvalidation;
 
-import java.beans.Introspector;
+import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
+
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 
-import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 
-class PropertyUtils {
+final class PropertyUtils {
 
     private PropertyUtils() { }
 
@@ -52,9 +51,6 @@ class PropertyUtils {
 
 
     static Object getProperty(Object bean, String propertyName) {
-        if (bean == null) {
-            throw new IllegalArgumentException("Cannot get property on null object");
-        }
 
         Class<?> beanClass = bean.getClass();
         String capitalizedPropertyName = StringUtils.capitalize(propertyName);

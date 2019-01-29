@@ -1,12 +1,5 @@
 package org.unbrokendome.jackson.beanvalidation;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import javax.validation.Validator;
-import javax.validation.ValidatorFactory;
-
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -18,15 +11,20 @@ import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
 import com.fasterxml.jackson.databind.deser.impl.MethodProperty;
 import com.fasterxml.jackson.databind.type.CollectionType;
 
+import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
+import java.util.ArrayList;
+import java.util.List;
 
-public class ValidationBeanDeserializerModifier extends BeanDeserializerModifier {
+
+final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier {
 
     private final ValidatorFactory validatorFactory;
-    private final Set<BeanValidationFeature> features;
+    private final BeanValidationFeatureSet features;
 
 
-    public ValidationBeanDeserializerModifier(ValidatorFactory validatorFactory,
-                                              Set<BeanValidationFeature> features) {
+    ValidationBeanDeserializerModifier(ValidatorFactory validatorFactory,
+                                       BeanValidationFeatureSet features) {
         this.validatorFactory = validatorFactory;
         this.features = features;
     }

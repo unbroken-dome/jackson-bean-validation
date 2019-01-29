@@ -1,24 +1,38 @@
 package org.unbrokendome.jackson.beanvalidation;
 
-import java.io.IOException;
-import java.util.Set;
-
-import javax.validation.ConstraintViolationException;
-import javax.validation.ValidatorFactory;
-
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 
-public class BeanValidationModule extends Module {
+import javax.validation.ConstraintViolationException;
+import javax.validation.ValidatorFactory;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.EnumSet;
+
+
+public final class BeanValidationModule extends Module {
 
     private final ValidatorFactory validatorFactory;
-    private final Set<BeanValidationFeature> features = BeanValidationFeature.getDefaultFeatures();
+    private final EnumSet<BeanValidationFeature> features;
+
 
     public BeanValidationModule(ValidatorFactory validatorFactory) {
-        this.validatorFactory = validatorFactory;
+        this(validatorFactory, BeanValidationFeature.getDefaultFeatures());
     }
+
+
+    public BeanValidationModule(ValidatorFactory validatorFactory, Collection<BeanValidationFeature> features) {
+        this(validatorFactory, EnumSet.copyOf(features));
+    }
+
+
+    private BeanValidationModule(ValidatorFactory validatorFactory, EnumSet<BeanValidationFeature> features) {
+        this.validatorFactory = validatorFactory;
+        this.features = features;
+    }
+
 
     @Override
     public String getModuleName() {
@@ -32,9 +46,37 @@ public class BeanValidationModule extends Module {
     }
 
 
+    public BeanValidationModule configure(BeanValidationFeature feature, boolean enabled) {
+        return enabled ? enable(feature) : disable(feature);
+    }
+
+
+    public BeanValidationModule enable(BeanValidationFeature feature) {
+        if (features.contains(feature)) {
+            return this;
+        }
+        EnumSet<BeanValidationFeature> newFeatures = EnumSet.copyOf(features);
+        newFeatures.add(feature);
+        return new BeanValidationModule(validatorFactory, newFeatures);
+    }
+
+
+    public BeanValidationModule disable(BeanValidationFeature feature) {
+        if (!features.contains(feature)) {
+            return this;
+        }
+        EnumSet<BeanValidationFeature> newFeatures = EnumSet.copyOf(features);
+        newFeatures.remove(feature);
+        return new BeanValidationModule(validatorFactory, newFeatures);
+    }
+
+
     @Override
     public void setupModule(SetupContext context) {
-        context.addBeanDeserializerModifier(new ValidationBeanDeserializerModifier(validatorFactory, features));
+
+        BeanValidationFeatureSet featureSet = new BeanValidationFeatureSet(features);
+
+        context.addBeanDeserializerModifier(new ValidationBeanDeserializerModifier(validatorFactory, featureSet));
 
         context.addDeserializationProblemHandler(new DeserializationProblemHandler() {
             @Override

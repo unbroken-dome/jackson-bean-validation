@@ -1,9 +1,9 @@
 package org.unbrokendome.jackson.beanvalidation;
 
-import javax.validation.Validator;
-
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
 import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
+
+import javax.validation.Validator;
 
 
 public class ValidationAwareFieldProperty extends AbstractValidationAwareProperty<FieldProperty> {

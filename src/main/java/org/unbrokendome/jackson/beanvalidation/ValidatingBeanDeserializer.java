@@ -14,12 +14,15 @@ import com.fasterxml.jackson.databind.deser.impl.PropertyBasedCreator;
 import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
-import org.unbrokendome.jackson.beanvalidation.path.PathUtils;
+import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
+import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtils;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import javax.validation.MessageInterpolator;
+import javax.validation.Path;
 import javax.validation.Valid;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
@@ -34,17 +37,17 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 
-public class ValidatingBeanDeserializer extends BeanDeserializer {
+final class ValidatingBeanDeserializer extends BeanDeserializer {
 
     private final ValidatorFactory validatorFactory;
-    private final Set<BeanValidationFeature> features;
+    private final BeanValidationFeatureSet features;
     private final Validator validator;
     private final MessageInterpolator messageInterpolator;
     private final JsonValidated validationAnnotation;
 
 
-    public ValidatingBeanDeserializer(BeanDeserializerBase src, ValidatorFactory validatorFactory,
-                                      Set<BeanValidationFeature> features, JsonValidated validationAnnotation) {
+    ValidatingBeanDeserializer(BeanDeserializerBase src, ValidatorFactory validatorFactory,
+                                      BeanValidationFeatureSet features, JsonValidated validationAnnotation) {
         super(src);
         this.validatorFactory = validatorFactory;
         this.validator = validatorFactory.getValidator();
@@ -63,7 +66,7 @@ public class ValidatingBeanDeserializer extends BeanDeserializer {
             Collection<SettableBeanProperty> creatorProperties = _propertyBasedCreator.properties();
 
             _propertyBasedCreator = PropertyBasedCreator.construct(ctxt,
-                    new ValidatingValueInstantiator((StdValueInstantiator) _valueInstantiator, validatorFactory),
+                    new ValidatingValueInstantiator((StdValueInstantiator) _valueInstantiator, validatorFactory, features),
                     creatorProperties.toArray(new SettableBeanProperty[0]),
                     _beanProperties);
         }
@@ -291,39 +294,51 @@ public class ValidatingBeanDeserializer extends BeanDeserializer {
     }
 
 
+    @Nullable
     private Set<ConstraintViolation<?>> validateProperty(Object bean, String propName,
                                                          @Nullable Set<ConstraintViolation<?>> violationsCollector) {
+
         SettableBeanProperty prop = _beanProperties.find(propName);
-        if (!(prop instanceof CreatorProperty)) {
+        assert !(prop instanceof CreatorProperty);
 
-            String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
+        String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
 
-            Set<ConstraintViolation<Object>> propertyViolations = validator.validateProperty(bean, beanPropertyName);
+        Set<ConstraintViolation<Object>> propertyViolations = validator.validateProperty(bean, beanPropertyName);
 
-            if (propertyViolations != null && !propertyViolations.isEmpty()) {
-                if (violationsCollector == null) {
-                    violationsCollector = new LinkedHashSet<>();
-                }
-                violationsCollector.addAll(propertyViolations);
+        if (propertyViolations != null && !propertyViolations.isEmpty()) {
+            if (violationsCollector == null) {
+                violationsCollector = new LinkedHashSet<>();
             }
+            violationsCollector.addAll(propertyViolations);
+        }
 
-            // If the property is annotated with @Valid, validateProperty won't cascade, so we have to
-            // validate the bean value manually
-            if (prop.getAnnotation(Valid.class) != null) {
-                Object value = PropertyUtils.getProperty(bean, beanPropertyName);
-                if (value != null) {
-                    Set<ConstraintViolation<Object>> cascadedViolations = validator.validate(value);
-                    if (cascadedViolations != null && !cascadedViolations.isEmpty()) {
-                        if (violationsCollector == null) {
-                            violationsCollector = new HashSet<>();
-                        }
-                        cascadedViolations.stream()
-                                .map(v -> ConstraintViolationUtils.resolvePath(v, propName))
-                                .forEach(violationsCollector::add);
+        // If the property is annotated with @Valid, validateProperty won't cascade, so we have to
+        // validate the bean value manually
+        if (prop.getAnnotation(Valid.class) != null) {
+            Object value = PropertyUtils.getProperty(bean, beanPropertyName);
+            if (value != null) {
+                Set<ConstraintViolation<Object>> cascadedViolations = validator.validate(value);
+                if (cascadedViolations != null && !cascadedViolations.isEmpty()) {
+                    if (violationsCollector == null) {
+                        violationsCollector = new HashSet<>();
+                    }
+
+                    Path propertyBasePath = PathBuilder.create()
+                            .appendBeanNode()
+                            .appendProperty(propName)
+                            .build();
+
+                    for (ConstraintViolation<Object> cascadedViolation : cascadedViolations) {
+                        @SuppressWarnings("unchecked")
+                        ConstraintViolation<?> resolvedViolation =
+                                ConstraintViolationUtils.withBasePath(cascadedViolation,
+                                        bean, (Class) handledType(), propertyBasePath);
+                        violationsCollector.add(resolvedViolation);
                     }
                 }
             }
         }
+
         return violationsCollector;
     }
 
@@ -344,7 +359,7 @@ public class ValidatingBeanDeserializer extends BeanDeserializer {
 
         // In addition to the default PropertyValueBuffer we also need to store constraint violations
         ValidationAwarePropertyValueBuffer buffer = new ValidationAwarePropertyValueBuffer(p, ctxt,
-                creator.properties().size(), _objectIdReader, this._beanType, messageInterpolator);
+                creator.properties().size(), _objectIdReader, this._beanType, features, messageInterpolator);
 
         TokenBuffer unknown = null;
         final Class<?> activeView = _needViewProcesing ? ctxt.getActiveView() : null;
@@ -472,13 +487,14 @@ public class ValidatingBeanDeserializer extends BeanDeserializer {
     }
 
 
+    @SuppressWarnings("unchecked")
     private Object deserializeProperty(JsonParser p,
                                        DeserializationContext ctxt,
                                        @Nullable Object bean,
                                        SettableBeanProperty prop) throws IOException {
 
         Object value = null;
-        Set<? extends ConstraintViolation<?>> propertyViolations = Collections.emptySet();
+        Set<ConstraintViolation<?>> propertyViolations = Collections.emptySet();
 
         try {
             if (!p.hasToken(JsonToken.VALUE_NULL)) {
@@ -488,30 +504,22 @@ public class ValidatingBeanDeserializer extends BeanDeserializer {
             if (!(prop instanceof CreatorProperty)) {
                 String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
                 propertyViolations =
-                        validator.validateValue(handledType(), beanPropertyName, value);
+                        (Set) validator.validateValue(handledType(), beanPropertyName, value);
             }
 
         } catch (MismatchedInputException ex) {
-
-            JsonValidInput constraintAnnotation = prop.getAnnotation(JsonValidInput.class);
-            if (constraintAnnotation == null) {
-                constraintAnnotation = JsonConstraints.validInput(validationAnnotation.validInputMessage());
-            }
-
-            ConstraintDescriptor<?> constraintDescriptor =
-                    new JsonValidInputConstraintDescriptor(constraintAnnotation);
-
-            @SuppressWarnings("unchecked")
-            ConstraintViolation<?> violation = new ConstraintViolationImpl(
-                    bean, handledType(), bean, PathUtils.simplePath(prop.getName()),
-                    p.getCurrentValue(), constraintDescriptor, messageInterpolator);
-            propertyViolations = Collections.singleton(violation);
+            propertyViolations = Collections.singleton(handleMismatchedInput(p, bean, prop));
 
         } catch (ConstraintViolationException ex) {
 
-            propertyViolations = ex.getConstraintViolations().stream()
-                    .map(violation -> ConstraintViolationUtils.resolvePath(violation, prop.getName()))
-                    .collect(Collectors.toSet());
+            Path propertyBasePath = PropertyPathUtils.constructPropertyPath(prop, features);
+            propertyViolations = new LinkedHashSet<>(ex.getConstraintViolations().size());
+
+            for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+                ConstraintViolation<?> resolvedViolation = ConstraintViolationUtils.withBasePath(
+                        violation, bean, (Class) handledType(), propertyBasePath);
+                propertyViolations.add(resolvedViolation);
+            }
 
         } catch (Exception ex) {
             wrapAndThrow(ex, handledType(), prop.getName(), ctxt);
@@ -521,5 +529,23 @@ public class ValidatingBeanDeserializer extends BeanDeserializer {
             throw new ConstraintViolationException(propertyViolations);
         }
         return value;
+    }
+
+
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    private ConstraintViolation<?> handleMismatchedInput(JsonParser p, @Nullable Object bean, SettableBeanProperty prop) {
+
+        JsonValidInput constraintAnnotation = prop.getAnnotation(JsonValidInput.class);
+        if (constraintAnnotation == null) {
+            constraintAnnotation = JsonConstraints.validInput(validationAnnotation.validInputMessage());
+        }
+
+        ConstraintDescriptor<?> constraintDescriptor =
+                new JsonValidInputConstraintDescriptor(constraintAnnotation);
+
+        return ConstraintViolationUtils.create(
+                bean, (Class) handledType(), null, PropertyPathUtils.constructPropertyPath(prop, features),
+                p.getCurrentValue(), constraintDescriptor, messageInterpolator);
     }
 }

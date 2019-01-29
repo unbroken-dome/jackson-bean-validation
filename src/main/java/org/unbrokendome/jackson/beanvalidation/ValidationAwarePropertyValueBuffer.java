@@ -2,16 +2,16 @@ package org.unbrokendome.jackson.beanvalidation;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.deser.CreatorProperty;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
 import com.fasterxml.jackson.databind.deser.impl.ObjectIdReader;
 import com.fasterxml.jackson.databind.deser.impl.PropertyValueBuffer;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.util.ClassUtil;
-import org.unbrokendome.jackson.beanvalidation.path.PathUtils;
+import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtils;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.MessageInterpolator;
@@ -28,6 +28,7 @@ import java.util.Set;
 class ValidationAwarePropertyValueBuffer extends PropertyValueBuffer {
 
     private final JavaType beanType;
+    private final BeanValidationFeatureSet features;
     private final MessageInterpolator messageInterpolator;
     private Map<Integer, Set<ConstraintViolation<?>>> parameterViolations;
     private final JsonValidated validationAnnotation;
@@ -36,13 +37,14 @@ class ValidationAwarePropertyValueBuffer extends PropertyValueBuffer {
     ValidationAwarePropertyValueBuffer(JsonParser p, DeserializationContext ctxt,
                                        int paramCount, ObjectIdReader oir,
                                        JavaType beanType,
-                                       MessageInterpolator messageInterpolator) {
+                                       BeanValidationFeatureSet features, MessageInterpolator messageInterpolator) {
         super(p, ctxt, paramCount, oir);
         this.beanType = beanType;
-        this.validationAnnotation = beanType.getRawClass().getAnnotation(JsonValidated.class);
-        assert validationAnnotation != null;
-
+        this.features = features;
         this.messageInterpolator = messageInterpolator;
+        this.validationAnnotation = beanType.getRawClass().getAnnotation(JsonValidated.class);
+
+        assert validationAnnotation != null;
     }
 
 
@@ -59,6 +61,9 @@ class ValidationAwarePropertyValueBuffer extends PropertyValueBuffer {
 
     @Override
     protected Object _findMissing(SettableBeanProperty prop) throws JsonMappingException {
+
+        assert prop instanceof CreatorProperty;
+
         // First: do we have injectable value?
         Object injectableValueId = prop.getInjectableValueId();
         if (injectableValueId != null) {
@@ -76,10 +81,10 @@ class ValidationAwarePropertyValueBuffer extends PropertyValueBuffer {
             ConstraintDescriptor<?> constraintDescriptor =
                     new JsonRequiredConstraintDescriptor(requiredAnnotation);
 
-            @SuppressWarnings("unchecked")
-            ConstraintViolation<?> violation = new ConstraintViolationImpl(
+            ConstraintViolation<?> violation = ConstraintViolationUtils.create(
                     null, beanType.getRawClass(), null,
-                    PathUtils.simplePath(prop.getName()), null, constraintDescriptor, messageInterpolator);
+                    PropertyPathUtils.constructPropertyPath(prop, features), null,
+                    constraintDescriptor, messageInterpolator);
 
             assignViolations(prop, Collections.singleton(violation));
         }

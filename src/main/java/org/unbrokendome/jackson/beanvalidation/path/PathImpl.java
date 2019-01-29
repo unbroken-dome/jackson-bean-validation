@@ -1,39 +1,46 @@
 package org.unbrokendome.jackson.beanvalidation.path;
 
+import javax.annotation.Nonnull;
+import javax.validation.Path;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import javax.validation.Path;
 
 class PathImpl implements Path {
 
     private final Deque<Node> nodes;
+
 
     PathImpl(Iterable<Path.Node> nodes) {
         this.nodes = new LinkedList<>();
         nodes.forEach(this.nodes::add);
     }
 
+
     @Override
+    @Nonnull
     public Iterator<Node> iterator() {
         return nodes.iterator();
     }
 
+
     @Override
+    @Nonnull
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        nodes.forEach(node -> {
+        for (Node node : nodes) {
+
+            String nodeValue = node.toString();
+            if (nodeValue == null || nodeValue.isEmpty()) {
+                continue;
+            }
+
             if (builder.length() > 0) {
                 builder.append('.');
             }
-            builder.append(node.getName());
-            if (node.getIndex() != null) {
-                builder.append('[').append(node.getIndex()).append(']');
-            } else if (node.getKey() != null) {
-                builder.append('[').append(node.getKey()).append(']');
-            }
-        });
+            builder.append(nodeValue);
+        }
         return builder.toString();
     }
 }

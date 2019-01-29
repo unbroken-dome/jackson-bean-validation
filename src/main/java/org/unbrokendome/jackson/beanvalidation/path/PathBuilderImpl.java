@@ -1,51 +1,80 @@
 package org.unbrokendome.jackson.beanvalidation.path;
 
-import java.util.Deque;
-import java.util.LinkedList;
-
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.validation.ElementKind;
 import javax.validation.Path;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
-public class PathBuilderImpl implements PathBuilder {
+
+final class PathBuilderImpl implements PathBuilder {
 
     private final Deque<Path.Node> nodes = new LinkedList<>();
 
+
+    @Nonnull
     @Override
     public PathBuilder appendPath(Path path) {
-        path.forEach(node -> {
-            if (node.getKind() != ElementKind.PROPERTY) {
-                throw new IllegalArgumentException("Path supports only PROPERTY nodes");
-            }
-            if (node.getIndex() != null) {
-                appendIndexedProperty(node.getName(), node.getIndex());
-            } else if (node.getKey() != null) {
-                appendKeyedProperty(node.getName(), node.getKey());
-            } else {
-                appendProperty(node.getName());
-            }
-        });
+        Iterator<Path.Node> pathIterator = path.iterator();
+        if (!pathIterator.hasNext()) {
+            // other path is empty
+            return this;
+        }
+
+        Path.Node firstNode = pathIterator.next();
+        // Don't duplicate the starting BEAN node
+        if (nodes.isEmpty() || firstNode.getKind() != ElementKind.BEAN) {
+            nodes.addLast(firstNode);
+        }
+
+        while (pathIterator.hasNext()) {
+            nodes.addLast(pathIterator.next());
+        }
+
         return this;
     }
 
 
+    @Nonnull
     @Override
-    public PathBuilder appendProperty(String name) {
-        nodes.addLast(new SimplePropertyNode(name));
+    public PathBuilder appendNode(Path.Node node) {
+        nodes.addLast(node);
         return this;
     }
 
+
+    @Nonnull
+    public PathBuilder appendBeanNode() {
+        return appendNode(BeanNode.getInstance());
+    }
+
+
+    @Nonnull
     @Override
-    public PathBuilder appendIndexedProperty(String name, int index) {
-        nodes.addLast(new IndexedPropertyNode(name, index));
-        return this;
+    public PathBuilder appendConstructor(String name, List<Class<?>> parameterTypes) {
+        return appendNode(new ConstructorNode(name, parameterTypes));
     }
 
+
+    @Nonnull
     @Override
-    public PathBuilder appendKeyedProperty(String name, Object key) {
-        nodes.addLast(new KeyedPropertyNode(name, key));
+    public PathBuilder appendProperty(String name, @Nullable Integer index, @Nullable Object key) {
+        return appendNode(new PropertyNode(name, index, key));
+    }
+
+
+    @Nonnull
+    @Override
+    public PathBuilder appendParameter(String name, int parameterIndex) {
+        nodes.addLast(new ParameterNode(name, parameterIndex));
         return this;
     }
 
+
+    @Nonnull
     @Override
     public Path build() {
         return new PathImpl(nodes);

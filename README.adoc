@@ -260,6 +260,7 @@ because the validation happens before the constructor is called:
 
 [source,kotlin]
 ----
+@JsonValidated
 data class PersonRequest(
     @param:NotNull val firstName: String,
     @param:NotNull val lastName: String,
@@ -268,6 +269,9 @@ data class PersonRequest(
 
 So, you no longer need to use `String?` just to validate `@NotNull` and use those ugly double exclamation
 marks everywhere.
+
+Remember that annotations on `val` parameters in the constructor should be qualified with `@param:`. You can place
+multiple constraints with the shorthand syntax e.g. `@param:[NotNull Size(min = 3)]`.
 
 
 === Handling of Required Parameters and Primitives
@@ -309,3 +313,7 @@ It does not work with Jackson 2.8.x.
 
 * Validation groups are currently not supported - mostly because there is no nice way of passing them to the
   `ObjectMapper` when deserializing.
+
+* Bean validation does not allow parameter validation on static methods. That means that static `@JsonCreator` factory
+  methods will only be checked for valid input and required parameters, but actual bean validation constraints on
+  these parameters will not be evaluated.

@@ -1,25 +1,42 @@
 package org.unbrokendome.jackson.beanvalidation.path;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.validation.ElementKind;
 import javax.validation.Path;
 
-public class BeanNode extends AbstractNode implements Path.BeanNode {
 
-    public BeanNode(String name) {
-        super(name);
+final class BeanNode extends AbstractNode implements Path.BeanNode {
+
+    private static final BeanNode INSTANCE = new BeanNode();
+
+
+    private BeanNode() {
+        super("");
     }
 
+
+    static BeanNode getInstance() {
+        return INSTANCE;
+    }
+
+
     @Override
+    @Nonnull
     public ElementKind getKind() {
         return ElementKind.BEAN;
     }
 
+
     @Override
+    @Nullable
     public Class<?> getContainerClass() {
         return null;
     }
 
+
     @Override
+    @Nullable
     public Integer getTypeArgumentIndex() {
         return null;
     }

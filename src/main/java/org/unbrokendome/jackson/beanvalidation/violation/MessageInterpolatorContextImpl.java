@@ -1,17 +1,19 @@
-package org.unbrokendome.jackson.beanvalidation;
+package org.unbrokendome.jackson.beanvalidation.violation;
 
+import javax.annotation.Nullable;
 import javax.validation.MessageInterpolator;
 import javax.validation.ValidationException;
 import javax.validation.metadata.ConstraintDescriptor;
 
 
-class MessageInterpolatorContextImpl implements MessageInterpolator.Context {
+final class MessageInterpolatorContextImpl implements MessageInterpolator.Context {
 
     private final ConstraintDescriptor<?> constraintDescriptor;
     private final Object validatedValue;
 
 
-    MessageInterpolatorContextImpl(ConstraintDescriptor<?> constraintDescriptor, Object validatedValue) {
+    MessageInterpolatorContextImpl(ConstraintDescriptor<?> constraintDescriptor,
+                                   @Nullable Object validatedValue) {
         this.constraintDescriptor = constraintDescriptor;
         this.validatedValue = validatedValue;
     }
