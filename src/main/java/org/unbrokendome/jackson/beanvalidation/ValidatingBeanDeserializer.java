@@ -28,8 +28,9 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import javax.validation.metadata.ConstraintDescriptor;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -63,11 +64,15 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
         if (_propertyBasedCreator != null && _valueInstantiator instanceof StdValueInstantiator) {
 
-            Collection<SettableBeanProperty> creatorProperties = _propertyBasedCreator.properties();
+            SettableBeanProperty[] creatorProperties =
+                    _propertyBasedCreator.properties().toArray(new SettableBeanProperty[0]);
+            // properties() returns properties from its lookup hashmap rather than its _allproperties,
+            // so they won't be sorted
+            Arrays.sort(creatorProperties, Comparator.comparing(SettableBeanProperty::getCreatorIndex));
 
             _propertyBasedCreator = PropertyBasedCreator.construct(ctxt,
                     new ValidatingValueInstantiator((StdValueInstantiator) _valueInstantiator, validatorFactory, features),
-                    creatorProperties.toArray(new SettableBeanProperty[0]),
+                    creatorProperties,
                     _beanProperties);
         }
     }
