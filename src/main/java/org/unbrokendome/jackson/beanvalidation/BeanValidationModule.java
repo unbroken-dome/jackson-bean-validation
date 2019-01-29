@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 import javax.validation.ConstraintViolationException;
 import javax.validation.ValidatorFactory;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.EnumSet;
 
 
@@ -20,11 +19,6 @@ public final class BeanValidationModule extends Module {
 
     public BeanValidationModule(ValidatorFactory validatorFactory) {
         this(validatorFactory, BeanValidationFeature.getDefaultFeatures());
-    }
-
-
-    public BeanValidationModule(ValidatorFactory validatorFactory, Collection<BeanValidationFeature> features) {
-        this(validatorFactory, EnumSet.copyOf(features));
     }
 
 
@@ -52,22 +46,14 @@ public final class BeanValidationModule extends Module {
 
 
     public BeanValidationModule enable(BeanValidationFeature feature) {
-        if (features.contains(feature)) {
-            return this;
-        }
-        EnumSet<BeanValidationFeature> newFeatures = EnumSet.copyOf(features);
-        newFeatures.add(feature);
-        return new BeanValidationModule(validatorFactory, newFeatures);
+        features.add(feature);
+        return this;
     }
 
 
     public BeanValidationModule disable(BeanValidationFeature feature) {
-        if (!features.contains(feature)) {
-            return this;
-        }
-        EnumSet<BeanValidationFeature> newFeatures = EnumSet.copyOf(features);
-        newFeatures.remove(feature);
-        return new BeanValidationModule(validatorFactory, newFeatures);
+        features.remove(feature);
+        return this;
     }
 
 
