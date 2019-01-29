@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.deser.BeanDeserializerBase;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerBuilder;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
+import com.fasterxml.jackson.databind.deser.ValueInstantiator;
 import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
 import com.fasterxml.jackson.databind.deser.impl.MethodProperty;
+import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
 import com.fasterxml.jackson.databind.type.CollectionType;
 
 import javax.validation.Validator;
@@ -46,6 +48,10 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
                 builder.addOrReplaceProperty(new ValidationAwareFieldProperty(property, validator), true);
             }
         }
+
+        ValueInstantiator valueInstantiator = builder.getValueInstantiator();
+        builder.setValueInstantiator(new ValidatingValueInstantiator(
+                valueInstantiator, validatorFactory, features));
 
         return builder;
     }

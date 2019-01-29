@@ -62,6 +62,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
     public void resolve(DeserializationContext ctxt) throws JsonMappingException {
         super.resolve(ctxt);
 
+        /*
         if (_propertyBasedCreator != null && _valueInstantiator instanceof StdValueInstantiator) {
 
             SettableBeanProperty[] creatorProperties =
@@ -71,10 +72,11 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
             Arrays.sort(creatorProperties, Comparator.comparing(SettableBeanProperty::getCreatorIndex));
 
             _propertyBasedCreator = PropertyBasedCreator.construct(ctxt,
-                    new ValidatingValueInstantiator((StdValueInstantiator) _valueInstantiator, validatorFactory, features),
+                    new ValidatingValueInstantiator(_valueInstantiator, validatorFactory, features),
                     creatorProperties,
                     _beanProperties);
         }
+        */
     }
 
 

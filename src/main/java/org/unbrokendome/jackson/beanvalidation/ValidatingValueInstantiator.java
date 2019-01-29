@@ -2,8 +2,8 @@ package org.unbrokendome.jackson.beanvalidation;
 
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
+import com.fasterxml.jackson.databind.deser.ValueInstantiator;
 import com.fasterxml.jackson.databind.deser.impl.PropertyValueBuffer;
-import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
 import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
 import org.unbrokendome.jackson.beanvalidation.path.PathUtils;
 import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtils;
@@ -25,15 +25,15 @@ import java.util.Map;
 import java.util.Set;
 
 
-class ValidatingValueInstantiator extends StdValueInstantiator {
+class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
     private final ValidatorFactory validatorFactory;
     private final BeanValidationFeatureSet features;
 
 
-    ValidatingValueInstantiator(StdValueInstantiator src, ValidatorFactory validatorFactory,
+    ValidatingValueInstantiator(ValueInstantiator delegate, ValidatorFactory validatorFactory,
                                 BeanValidationFeatureSet features) {
-        super(src);
+        super(delegate);
         this.validatorFactory = validatorFactory;
         this.features = features;
     }
@@ -58,7 +58,7 @@ class ValidatingValueInstantiator extends StdValueInstantiator {
                                         Map<Integer, Set<ConstraintViolation<?>>> parameterViolations)
             throws IOException {
 
-        if (_withArgsCreator == null) { // sanity-check; caller should check
+        if (getWithArgsCreator() == null) { // sanity-check; caller should check
             return super.createFromObjectWith(ctxt, args);
         }
 
@@ -83,7 +83,7 @@ class ValidatingValueInstantiator extends StdValueInstantiator {
                     }
 
                     allViolations.add(
-                            mapParameterViolation(violation, parameterNode, parameterIndex));
+                            mapParameterViolation(violation, parameterNode, parameterIndex, ctxt));
                 }
             }
 
@@ -107,7 +107,7 @@ class ValidatingValueInstantiator extends StdValueInstantiator {
             return Collections.emptySet();
         }
 
-        Member creatorMember = _withArgsCreator.getMember();
+        Member creatorMember = getWithArgsCreator().getMember();
         ExecutableValidator executableValidator = validatorFactory.getValidator().forExecutables();
 
         if (creatorMember instanceof Constructor) {
@@ -137,7 +137,10 @@ class ValidatingValueInstantiator extends StdValueInstantiator {
 
     @Nonnull
     private ConstraintViolation<?> mapParameterViolation(ConstraintViolation<?> violation,
-                                                         Path.Node parameterNode, int parameterIndex) {
+                                                         Path.Node parameterNode, int parameterIndex,
+                                                         DeserializationContext context) {
+
+        SettableBeanProperty[] constructorArguments = getFromObjectArguments(context.getConfig());
 
         if (features.isEnabled(BeanValidationFeature.MAP_CREATOR_VIOLATIONS_TO_PROPERTY_VIOLATIONS)) {
 
@@ -146,7 +149,7 @@ class ValidatingValueInstantiator extends StdValueInstantiator {
             if (features.isEnabled(BeanValidationFeature.REPORT_BEAN_PROPERTY_PATHS_IN_VIOLATIONS)) {
                 propertyName = parameterNode.getName();
             } else {
-                propertyName = this._constructorArguments[parameterIndex].getName();
+                propertyName = constructorArguments[parameterIndex].getName();
             }
             Path newPath = PathBuilder.create()
                     .appendBeanNode()
@@ -160,7 +163,7 @@ class ValidatingValueInstantiator extends StdValueInstantiator {
 
             Path newPath = PathBuilder.create()
                     .appendPath(PathUtils.takeUntil(violation.getPropertyPath(), ElementKind.CONSTRUCTOR))
-                    .appendParameter(_constructorArguments[parameterIndex].getName(), parameterIndex)
+                    .appendParameter(constructorArguments[parameterIndex].getName(), parameterIndex)
                     .appendPath(PathUtils.dropUntil(violation.getPropertyPath(), ElementKind.PARAMETER))
                     .build();
             return ConstraintViolationUtils.withNewPath(violation, newPath);
