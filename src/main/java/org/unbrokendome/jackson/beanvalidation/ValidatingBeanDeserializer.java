@@ -48,7 +48,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
 
     ValidatingBeanDeserializer(BeanDeserializerBase src, ValidatorFactory validatorFactory,
-                                      BeanValidationFeatureSet features, JsonValidated validationAnnotation) {
+                               BeanValidationFeatureSet features, JsonValidated validationAnnotation) {
         super(src);
         this.validatorFactory = validatorFactory;
         this.validator = validatorFactory.getValidator();
@@ -539,7 +539,8 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
     @Nonnull
     @SuppressWarnings("unchecked")
-    private ConstraintViolation<?> handleMismatchedInput(JsonParser p, @Nullable Object bean, SettableBeanProperty prop) {
+    private ConstraintViolation<?> handleMismatchedInput(JsonParser p, @Nullable Object bean,
+                                                         SettableBeanProperty prop) {
 
         JsonValidInput constraintAnnotation = prop.getAnnotation(JsonValidInput.class);
         if (constraintAnnotation == null) {
@@ -549,8 +550,15 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
         ConstraintDescriptor<?> constraintDescriptor =
                 new JsonValidInputConstraintDescriptor(constraintAnnotation);
 
+        Object invalidValue;
+        try {
+            invalidValue = p.getText();
+        } catch (IOException ex) {
+            invalidValue = null;
+        }
+
         return ConstraintViolationUtils.create(
                 bean, (Class) handledType(), null, PropertyPathUtils.constructPropertyPath(prop, features),
-                p.getCurrentValue(), constraintDescriptor, messageInterpolator);
+                invalidValue, constraintDescriptor, messageInterpolator);
     }
 }
