@@ -47,13 +47,38 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
                                        SettableBeanProperty[] props, PropertyValueBuffer buffer)
             throws IOException {
 
-        if (buffer instanceof ValidationAwarePropertyValueBuffer) {
-            return createFromObjectWith(ctxt,
-                    buffer.getParameters(props),
-                    ((ValidationAwarePropertyValueBuffer) buffer).getParameterViolations());
+        if (getWithArgsCreator() == null) { // sanity-check; caller should check
+            return super.createFromObjectWith(ctxt, props, buffer);
         }
 
-        return createFromObjectWith(ctxt, buffer.getParameters(props));
+        Map<Integer, Set<ConstraintViolation<?>>> parameterViolations;
+        if (buffer instanceof ValidationAwarePropertyValueBuffer) {
+            parameterViolations = ((ValidationAwarePropertyValueBuffer) buffer).getParameterViolations();
+        } else {
+            parameterViolations = Collections.emptyMap();
+        }
+
+        return createFromObjectWith(ctxt, props, buffer, parameterViolations);
+    }
+
+
+    private Object createFromObjectWith(DeserializationContext ctxt,
+                                        SettableBeanProperty[] props, PropertyValueBuffer buffer,
+                                        Map<Integer, Set<ConstraintViolation<?>>> parameterViolations)
+            throws IOException {
+
+        Set<? extends ConstraintViolation<?>> creatorViolations =
+                validateCreatorArgs(props, buffer, parameterViolations);
+
+        throwIfHasViolations(ctxt, parameterViolations, creatorViolations);
+
+        return super.createFromObjectWith(ctxt, props, buffer);
+    }
+
+
+    @Override
+    public Object createFromObjectWith(DeserializationContext ctxt, Object[] args) throws IOException {
+        return createFromObjectWith(ctxt, args, Collections.emptyMap());
     }
 
 
@@ -61,12 +86,17 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
                                         Map<Integer, Set<ConstraintViolation<?>>> parameterViolations)
             throws IOException {
 
-        if (getWithArgsCreator() == null) { // sanity-check; caller should check
-            return super.createFromObjectWith(ctxt, args);
-        }
-
         Set<? extends ConstraintViolation<?>> creatorViolations = validateCreatorArgs(args, parameterViolations);
 
+        throwIfHasViolations(ctxt, parameterViolations, creatorViolations);
+
+        return super.createFromObjectWith(ctxt, args);
+    }
+
+
+    private void throwIfHasViolations(DeserializationContext ctxt, Map<Integer,
+                                    Set<ConstraintViolation<?>>> parameterViolations,
+                                      Set<? extends ConstraintViolation<?>> creatorViolations) {
         if (!creatorViolations.isEmpty() || !parameterViolations.isEmpty()) {
 
             Set<ConstraintViolation<?>> allViolations = new LinkedHashSet<>();
@@ -96,8 +126,20 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
             throw new ConstraintViolationException(allViolations);
         }
+    }
 
-        return super.createFromObjectWith(ctxt, args);
+
+    @Nonnull
+    private Set<ConstraintViolation<?>> validateCreatorArgs(
+            SettableBeanProperty[] props, PropertyValueBuffer buffer,
+            Map<Integer, Set<ConstraintViolation<?>>> parameterViolations) throws IOException {
+
+        if (allParametersHaveViolations(props.length, parameterViolations)) {
+            return Collections.emptySet();
+        }
+
+        Object[] args = buffer.getParameters(props);
+        return validateCreatorArgs(args, parameterViolations);
     }
 
 
@@ -175,12 +217,6 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
             // no mapping required
             return violation;
         }
-    }
-
-
-    @Override
-    public Object createFromObjectWith(DeserializationContext ctxt, Object[] args) throws IOException {
-        return createFromObjectWith(ctxt, args, Collections.emptyMap());
     }
 
 
