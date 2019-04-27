@@ -537,9 +537,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
         Set<ConstraintViolation<?>> propertyViolations = Collections.emptySet();
 
         try {
-            if (!p.hasToken(JsonToken.VALUE_NULL)) {
-                value = prop.deserialize(p, ctxt);
-            }
+            value = prop.deserialize(p, ctxt);
 
             if (!(prop instanceof CreatorProperty)) {
                 String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
