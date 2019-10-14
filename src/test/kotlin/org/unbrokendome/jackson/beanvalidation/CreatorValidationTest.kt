@@ -6,24 +6,65 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.junit.jupiter.api.Test
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
+import javax.validation.Valid
 import javax.validation.constraints.NotNull
 
 
 class CreatorValidationTest : AbstractValidationTest() {
 
+    class SimpleBean
+    @JsonCreator constructor(
+        @param:[NotNull JsonProperty("value")] val value: String?
+    )
+
     @JsonValidated
-    class ImmutableValidatedBean
-    @JsonCreator(mode = JsonCreator.Mode.PROPERTIES) constructor(
+    class SimpleValidatedBean
+    @JsonCreator constructor(
         @param:[NotNull JsonProperty("value")] val value: String
+    )
+
+    @JsonValidated
+    class SimpleValidatedBeanWithRequired
+    @JsonCreator constructor(
+        @param:JsonProperty("value", required = true) val value: String?
+    )
+
+    @JsonValidated
+    class SimpleValidatedBeanWithRequiredNotNull
+    @JsonCreator constructor(
+        @param:[NotNull JsonProperty("value", required = true)] val value: String
+    )
+
+    @JsonValidated
+    class ValidatedBeanWithNested
+    @JsonCreator constructor(
+        @param:JsonProperty("nested") val nested: SimpleValidatedBean
+    )
+
+    @JsonValidated
+    class ValidatedBeanWithNestedRequired
+    @JsonCreator constructor(
+        @param:JsonProperty("nested") val nested: SimpleValidatedBeanWithRequired
+    )
+
+    @JsonValidated
+    class ValidatedBeanWithValidatedNested
+    @JsonCreator constructor(
+        @param:[JsonValidated JsonProperty("nested")] val nested: SimpleBean
+    )
+
+    @JsonValidated
+    class ValidatedBeanWithValidNested
+    @JsonCreator constructor(
+        @param:[Valid JsonProperty("nested")] val nested: SimpleBean
     )
 
 
     @Test
-    fun shouldValidateMissingCreatorParameterOnAnnotatedBean() {
+    fun `should report NotNull violation on null creator property`() {
 
-        val json = "{ }"
-
-        val violations = assertViolationsOnDeserialization(json, ImmutableValidatedBean::class.java)
+        val json = """{ "value": null }"""
+        val violations = assertViolationsOnDeserialization<SimpleValidatedBean>(json)
 
         assertThat(violations).hasSize(1)
         assertThat(violations).hasViolation<NotNull>("value")
@@ -31,14 +72,62 @@ class CreatorValidationTest : AbstractValidationTest() {
 
 
     @Test
-    fun shouldValidateExplicitNullCreatorParameterOnAnnotatedBean() {
+    fun `should report JsonRequired violation on missing required creator property`() {
+        val json = "{ }"
+        val violations = assertViolationsOnDeserialization<SimpleValidatedBeanWithRequired>(json)
 
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<JsonRequired>("value")
+    }
+
+
+    @Test
+    fun `should report only NotNull violation on null required creator property`() {
         val json = """{ "value": null }"""
-
-        val violations = assertViolationsOnDeserialization(json, ImmutableValidatedBean::class.java)
+        val violations = assertViolationsOnDeserialization<SimpleValidatedBeanWithRequiredNotNull>(json)
 
         assertThat(violations).hasSize(1)
         assertThat(violations).hasViolation<NotNull>("value")
+    }
+
+
+    @Test
+    fun `should report JsonRequired violation on nested bean creator property`() {
+        val json = """{ "nested": { } }"""
+        val violations = assertViolationsOnDeserialization<ValidatedBeanWithNestedRequired>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<JsonRequired>("nested.value")
+    }
+
+
+    @Test
+    fun `should report NotNull violation on nested bean creator property`() {
+        val json = """{ "nested": { "value": null } }"""
+        val violations = assertViolationsOnDeserialization<ValidatedBeanWithNested>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<NotNull>("nested.value")
+    }
+
+
+    @Test
+    fun `should report NotNull violation on property-annotated nested bean`() {
+        val json = """{ "nested": { "value": null } }"""
+        val violations = assertViolationsOnDeserialization<ValidatedBeanWithValidatedNested>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<NotNull>("nested.value")
+    }
+
+
+    @Test
+    fun `should report NotNull violation on @Valid property-annotated nested bean`() {
+        val json = """{ "nested": { "value": null } }"""
+        val violations = assertViolationsOnDeserialization<ValidatedBeanWithValidNested>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<NotNull>("nested.value")
     }
 
 
@@ -57,33 +146,7 @@ class CreatorValidationTest : AbstractValidationTest() {
 
 
     @Test
-    fun shouldValidateSetterPropertiesNotExplicitlySet() {
-
-        val json = """{ "left": "123" }"""
-
-        val violations = assertViolationsOnDeserialization(json, BeanWithCreatorParamAndProperty::class.java)
-
-        assertThat(violations).hasSize(1)
-        assertThat(violations).hasViolation<NotNull>("right")
-    }
-
-
-    @JsonValidated
-    class BeanWithStaticFactoryMethod(val left: String, val right: String) {
-
-        companion object {
-            @JvmStatic
-            @JsonCreator
-            fun create(
-                @NotNull @JsonProperty("left") left: String,
-                @NotNull @JsonProperty("right") right: String
-            ) = BeanWithStaticFactoryMethod(left, right)
-        }
-    }
-
-
-    @Test
-    fun shouldValidateStaticFactoryMethod() {
+    fun `should validate setter properties not explicitly set`() {
 
         val json = """{ "left": "123" }"""
 
