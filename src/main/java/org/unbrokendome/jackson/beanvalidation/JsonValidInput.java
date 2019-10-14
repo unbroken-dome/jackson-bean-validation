@@ -43,7 +43,7 @@ public @interface JsonValidInput {
 class JsonValidInputConstraintDescriptor
         extends AbstractConstraintDescriptor<JsonValidInput> {
 
-    public JsonValidInputConstraintDescriptor(JsonValidInput annotation) {
+    JsonValidInputConstraintDescriptor(JsonValidInput annotation) {
         super(annotation);
     }
 

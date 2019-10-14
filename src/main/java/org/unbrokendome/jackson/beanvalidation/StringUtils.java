@@ -1,8 +1,13 @@
 package org.unbrokendome.jackson.beanvalidation;
 
-public class StringUtils {
 
-    public static String decapitalizeSubstring(String s, int startIndex) {
+final class StringUtils {
+
+    private StringUtils() {
+    }
+
+
+    static String decapitalizeSubstring(String s, int startIndex) {
         int length = s.length();
         if (startIndex > length) {
             throw new StringIndexOutOfBoundsException("String index out of range: " + startIndex);
@@ -18,7 +23,7 @@ public class StringUtils {
     }
 
 
-    public static String capitalizeSubstring(String s, int startIndex) {
+    static String capitalizeSubstring(String s, int startIndex) {
         int length = s.length();
         if (startIndex > length) {
             throw new StringIndexOutOfBoundsException("String index out of range: " + startIndex);
@@ -28,7 +33,7 @@ public class StringUtils {
         return Character.toUpperCase(s.charAt(startIndex)) + s.substring(startIndex + 1);
     }
 
-    public static String capitalize(String s) {
+    static String capitalize(String s) {
         return capitalizeSubstring(s, 0);
     }
 }

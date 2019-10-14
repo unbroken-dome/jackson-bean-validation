@@ -5,6 +5,7 @@ import javax.validation.Payload;
 import java.lang.annotation.Annotation;
 
 
+@SuppressWarnings("ClassExplicitlyAnnotation")
 final class JsonConstraints {
 
     private JsonConstraints() {
@@ -25,7 +26,6 @@ final class JsonConstraints {
     }
 
 
-    @SuppressWarnings("ClassExplicitlyAnnotation")
     private static final class DefaultJsonValidInput
             extends AbstractDefaultAnnotation implements JsonValidInput {
 
@@ -63,7 +63,6 @@ final class JsonConstraints {
     }
 
 
-    @SuppressWarnings("ClassExplicitlyAnnotation")
     private static final class DefaultJsonRequired
             extends AbstractDefaultAnnotation implements JsonRequired {
 

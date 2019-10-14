@@ -8,7 +8,7 @@ import javax.validation.Validator;
 
 public class ValidationAwareFieldProperty extends AbstractValidationAwareProperty<FieldProperty> {
 
-    public ValidationAwareFieldProperty(SettableBeanProperty src, Validator validator) {
+    ValidationAwareFieldProperty(SettableBeanProperty src, Validator validator) {
         super(src, validator);
     }
 

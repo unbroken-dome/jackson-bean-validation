@@ -49,8 +49,10 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
     private final JsonValidated validationAnnotation;
 
 
-    ValidatingBeanDeserializer(BeanDeserializerBase src, ValidatorFactory validatorFactory,
-                               BeanValidationFeatureSet features, JsonValidated validationAnnotation) {
+    ValidatingBeanDeserializer(
+            BeanDeserializerBase src, ValidatorFactory validatorFactory,
+            BeanValidationFeatureSet features, JsonValidated validationAnnotation
+    ) {
         super(src);
         this.validatorFactory = validatorFactory;
         this.validator = validatorFactory.getValidator();
@@ -218,10 +220,10 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
     }
 
 
-    private Object validateRemainingProperties(Object bean, DeserializationContext ctxt,
-                                               Set<String> propsToValidate,
-                                               @Nullable Set<ConstraintViolation<?>> previousViolations)
-            throws JsonMappingException {
+    private Object validateRemainingProperties(
+            Object bean, DeserializationContext ctxt, Set<String> propsToValidate,
+            @Nullable Set<ConstraintViolation<?>> previousViolations
+    ) throws JsonMappingException {
 
         Set<ConstraintViolation<?>> violations = null;
         if (previousViolations != null) {
@@ -267,8 +269,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
      * Streamlined version that is only used when no "special"
      * features are enabled.
      */
-    private Object vanillaDeserialize(JsonParser p,
-                                      DeserializationContext ctxt) throws IOException {
+    private Object vanillaDeserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         Set<ConstraintViolation<?>> violations = null;
 
         final Object bean = _valueInstantiator.createUsingDefault(ctxt);
@@ -335,9 +336,9 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
 
     @Nullable
-    private Set<ConstraintViolation<?>> validateProperty(Object bean, String propName,
-                                                         @Nullable Set<ConstraintViolation<?>> violationsCollector) {
-
+    private Set<ConstraintViolation<?>> validateProperty(
+            Object bean, String propName, @Nullable Set<ConstraintViolation<?>> violationsCollector
+    ) {
         SettableBeanProperty prop = _beanProperties.find(propName);
         assert !(prop instanceof CreatorProperty);
 
@@ -528,10 +529,9 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
 
     @SuppressWarnings("unchecked")
-    private Object deserializeProperty(JsonParser p,
-                                       DeserializationContext ctxt,
-                                       @Nullable Object bean,
-                                       SettableBeanProperty prop) throws IOException {
+    private Object deserializeProperty(
+            JsonParser p, DeserializationContext ctxt, @Nullable Object bean, SettableBeanProperty prop
+    ) throws IOException {
 
         Object value = null;
         Set<ConstraintViolation<?>> propertyViolations = Collections.emptySet();
@@ -572,9 +572,9 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
     @Nonnull
     @SuppressWarnings("unchecked")
-    private ConstraintViolation<?> handleMismatchedInput(JsonParser p, @Nullable Object bean,
-                                                         SettableBeanProperty prop) {
-
+    private ConstraintViolation<?> handleMismatchedInput(
+            JsonParser p, @Nullable Object bean, SettableBeanProperty prop
+    ) {
         JsonValidInput constraintAnnotation = prop.getAnnotation(JsonValidInput.class);
         if (constraintAnnotation == null) {
             constraintAnnotation = JsonConstraints.validInput(validationAnnotation.validInputMessage());

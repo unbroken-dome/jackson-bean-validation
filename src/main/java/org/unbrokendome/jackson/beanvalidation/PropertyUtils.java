@@ -9,7 +9,8 @@ import java.lang.reflect.Method;
 
 final class PropertyUtils {
 
-    private PropertyUtils() { }
+    private PropertyUtils() {
+    }
 
 
     static String getPropertyNameFromMember(AnnotatedMember member) {

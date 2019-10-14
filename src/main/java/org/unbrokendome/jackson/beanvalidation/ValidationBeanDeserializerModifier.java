@@ -25,17 +25,16 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
     private final BeanValidationFeatureSet features;
 
 
-    ValidationBeanDeserializerModifier(ValidatorFactory validatorFactory,
-                                       BeanValidationFeatureSet features) {
+    ValidationBeanDeserializerModifier(ValidatorFactory validatorFactory, BeanValidationFeatureSet features) {
         this.validatorFactory = validatorFactory;
         this.features = features;
     }
 
 
     @Override
-    public BeanDeserializerBuilder updateBuilder(DeserializationConfig config, BeanDescription beanDesc,
-                                                 BeanDeserializerBuilder builder) {
-
+    public BeanDeserializerBuilder updateBuilder(
+            DeserializationConfig config, BeanDescription beanDesc, BeanDeserializerBuilder builder
+    ) {
         List<SettableBeanProperty> properties = new ArrayList<>();
         builder.getProperties().forEachRemaining(properties::add);
 
@@ -60,9 +59,9 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
 
 
     @Override
-    public JsonDeserializer<?> modifyDeserializer(DeserializationConfig config, BeanDescription beanDesc,
-                                                  JsonDeserializer<?> deserializer) {
-
+    public JsonDeserializer<?> modifyDeserializer(
+            DeserializationConfig config, BeanDescription beanDesc, JsonDeserializer<?> deserializer
+    ) {
         JsonValidated annotation = beanDesc.getClassAnnotations().get(JsonValidated.class);
         if (annotation != null && deserializer instanceof BeanDeserializerBase) {
             return new ValidatingBeanDeserializer((BeanDeserializerBase) deserializer, validatorFactory,
@@ -74,8 +73,10 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
 
 
     @Override
-    public JsonDeserializer<?> modifyCollectionDeserializer(DeserializationConfig config, CollectionType type,
-                                                            BeanDescription beanDesc, JsonDeserializer<?> deserializer) {
+    public JsonDeserializer<?> modifyCollectionDeserializer(
+            DeserializationConfig config, CollectionType type,
+            BeanDescription beanDesc, JsonDeserializer<?> deserializer
+    ) {
         return super.modifyCollectionDeserializer(config, type, beanDesc, deserializer);
     }
 }
