@@ -7,14 +7,32 @@ plugins {
     kotlin("jvm") version "1.3.50"
     `maven-publish`
     id("com.jfrog.bintray") version "1.8.4"
+    id("org.unbroken-dome.test-sets") version "2.2.1"
 }
 
 repositories {
     jcenter()
 }
 
+testSets {
+    create("javaOnlyTest") {
+        dirName = "java-only-test"
+    }
+}
+
 
 val jacksonVersion = "2.9.8"
+
+
+configurations {
+    "javaOnlyTestImplementation" {
+        setExtendsFrom(extendsFrom - setOf(testImplementation.get()))
+        extendsFrom(implementation.get())
+    }
+}
+tasks.named("check") {
+    dependsOn("javaOnlyTest")
+}
 
 
 dependencies {
@@ -37,6 +55,9 @@ dependencies {
 
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.3.2")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.2.3")
+
+    "javaOnlyTestImplementation"("org.junit.jupiter:junit-jupiter-api:5.3.2")
+    "javaOnlyTestImplementation"("org.hibernate.validator:hibernate-validator:6.0.13.Final")
 }
 
 
