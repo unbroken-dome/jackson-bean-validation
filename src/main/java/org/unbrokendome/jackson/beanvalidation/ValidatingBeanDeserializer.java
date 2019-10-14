@@ -69,11 +69,19 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
         List<SettableBeanProperty> toBeWrapped = null;
         List<SettableBeanProperty> wrappedProperties = null;
 
-        // If we have any bean-typed properties annotated with @JsonValidated (but not the property type),
+        // If we have any bean-typed properties annotated with @JsonValidated or @Valid (but not the property type),
         // wrap them so they can use a ValidatingBeanDeserializer too
         for (SettableBeanProperty beanProperty : _beanProperties) {
 
             JsonValidated annotation = beanProperty.getAnnotation(JsonValidated.class);
+            if (annotation == null) {
+                // Use @Valid annotation as an alternative, inheriting the JsonValidated from the containing bean
+                Valid validAnnotation = beanProperty.getAnnotation(Valid.class);
+                if (validAnnotation != null) {
+                    annotation = this.validationAnnotation;
+                }
+            }
+
             if (annotation != null) {
                 JsonDeserializer<Object> valueDeserializer = beanProperty.getValueDeserializer();
                 if (valueDeserializer instanceof BeanDeserializerBase &&
@@ -399,8 +407,9 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
         final PropertyBasedCreator creator = _propertyBasedCreator;
 
         // In addition to the default PropertyValueBuffer we also need to store constraint violations
-        ValidationAwarePropertyValueBuffer buffer = new ValidationAwarePropertyValueBuffer(p, ctxt,
-                creator.properties().size(), _objectIdReader, this._beanType, features, messageInterpolator);
+        ValidationAwarePropertyValueBuffer buffer = new ValidationAwarePropertyValueBuffer(
+                p, ctxt, creator.properties().size(), _objectIdReader, this._beanType, features,
+                messageInterpolator, validationAnnotation);
 
         TokenBuffer unknown = null;
         final Class<?> activeView = _needViewProcesing ? ctxt.getActiveView() : null;
