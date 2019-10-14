@@ -249,6 +249,18 @@ Note that the global messages should _always_ be configured; the module library 
 there cannot be a second `ValidationMessages.properties` on the classpath.
 
 
+=== Cross-Parameter Validation with `@AssertTrue`
+
+`@AssertTrue` constraints on instance methods are a common pattern with Bean Validation to perform cross-parameter
+validation. With the bean validation module, this may not work as intended because the properties are validated
+independently as they are deserialized, and the bean will not even be constructed if any of the property values
+violates the constraints.
+
+To enable evaluation of an `@AssertTrue` constraint, enable the `BeanValidationFeature.VALIDATE_BEAN_AFTER_CONSTRUCTION`
+feature flag, which will cause the bean to be validated as a whole after it is fully constructed. Even so, such a
+violation will only be reported if the bean _can_ be constructed, so a violation may not be visible if there
+are other violations on creator properties (i.e. constructor params).
+
 
 == Kotlin Support
 

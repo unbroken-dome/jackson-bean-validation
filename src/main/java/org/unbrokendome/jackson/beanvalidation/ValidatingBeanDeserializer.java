@@ -141,11 +141,27 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
     }
 
 
+
+
     /**
      * Main deserialization method for bean-based objects (POJOs).
      */
     @Override
     public Object deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        Object bean = _deserialize(p, ctxt);
+
+        if (bean != null && features.isEnabled(BeanValidationFeature.VALIDATE_BEAN_AFTER_CONSTRUCTION)) {
+            Set<? extends ConstraintViolation<?>> violations = validator.validate(bean);
+            if (violations != null && !violations.isEmpty()) {
+                throw new ConstraintViolationException(violations);
+            }
+        }
+
+        return bean;
+    }
+
+
+    private Object _deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         // common case first
         if (p.isExpectedStartObjectToken()) {
             if (_vanillaProcessing) {
