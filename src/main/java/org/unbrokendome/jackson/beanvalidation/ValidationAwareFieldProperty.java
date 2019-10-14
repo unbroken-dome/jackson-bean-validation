@@ -6,14 +6,16 @@ import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
 import javax.validation.Validator;
 
 
-public class ValidationAwareFieldProperty extends AbstractValidationAwareProperty<FieldProperty> {
+final class ValidationAwareFieldProperty extends ValidationAwareBeanProperty<FieldProperty> {
 
-    ValidationAwareFieldProperty(SettableBeanProperty src, Validator validator) {
-        super(src, validator);
+    ValidationAwareFieldProperty(
+            SettableBeanProperty src, Validator validator, boolean validationEnabled) {
+        super(src, validator, validationEnabled);
     }
 
+
     @Override
-    protected SettableBeanProperty withDelegate(SettableBeanProperty delegate) {
-        return new ValidationAwareFieldProperty(delegate, validator);
+    protected SettableBeanProperty withDelegate(SettableBeanProperty delegate, boolean validationEnabled) {
+        return new ValidationAwareFieldProperty(delegate, validator, validationEnabled);
     }
 }

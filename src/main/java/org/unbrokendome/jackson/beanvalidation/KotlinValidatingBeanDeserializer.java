@@ -25,7 +25,7 @@ class KotlinValidatingBeanDeserializer extends ValidatingBeanDeserializer {
 
     KotlinValidatingBeanDeserializer(
             BeanDeserializerBase src, ValidatorFactory validatorFactory,
-            BeanValidationFeatureSet features, JsonValidated validationAnnotation
+            BeanValidationFeatureSet features, @Nullable JsonValidated validationAnnotation
     ) {
         super(src, validatorFactory, features, validationAnnotation);
 

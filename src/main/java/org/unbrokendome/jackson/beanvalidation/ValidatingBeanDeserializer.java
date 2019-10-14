@@ -3,13 +3,11 @@ package org.unbrokendome.jackson.beanvalidation;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
+import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.deser.BeanDeserializer;
-import com.fasterxml.jackson.databind.deser.BeanDeserializerBase;
-import com.fasterxml.jackson.databind.deser.CreatorProperty;
-import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
+import com.fasterxml.jackson.databind.deser.*;
 import com.fasterxml.jackson.databind.deser.impl.NullsConstantProvider;
 import com.fasterxml.jackson.databind.deser.impl.PropertyBasedCreator;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
@@ -19,23 +17,13 @@ import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtil
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
-import javax.validation.MessageInterpolator;
-import javax.validation.Path;
-import javax.validation.Valid;
-import javax.validation.Validator;
-import javax.validation.ValidatorFactory;
+import javax.validation.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.metadata.ConstraintDescriptor;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -43,16 +31,17 @@ import java.util.stream.StreamSupport;
 
 class ValidatingBeanDeserializer extends BeanDeserializer {
 
-    private final ValidatorFactory validatorFactory;
-    private final BeanValidationFeatureSet features;
+    protected final ValidatorFactory validatorFactory;
+    protected final BeanValidationFeatureSet features;
     private final Validator validator;
     private final MessageInterpolator messageInterpolator;
+    @Nullable
     private final JsonValidated validationAnnotation;
 
 
     ValidatingBeanDeserializer(
             BeanDeserializerBase src, ValidatorFactory validatorFactory,
-            BeanValidationFeatureSet features, JsonValidated validationAnnotation
+            BeanValidationFeatureSet features, @Nullable JsonValidated validationAnnotation
     ) {
         super(src);
         this.validatorFactory = validatorFactory;
@@ -60,12 +49,25 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
         this.messageInterpolator = validatorFactory.getMessageInterpolator();
         this.features = features;
         this.validationAnnotation = validationAnnotation;
+
+        if (validationAnnotation != null) {
+            ValueInstantiator valueInstantiator = getValueInstantiator();
+            if (valueInstantiator instanceof ValidatingValueInstantiator) {
+                ((ValidatingValueInstantiator) valueInstantiator).enableValidation(true);
+            }
+
+            properties().forEachRemaining(property -> {
+                if (property instanceof ValidationAwareBeanProperty<?>) {
+                    ((ValidationAwareBeanProperty<?>) property).enableValidation();
+                }
+            });
+        }
     }
 
 
     static ValidatingBeanDeserializer create(
             BeanDeserializerBase src, ValidatorFactory validatorFactory,
-            BeanValidationFeatureSet features, JsonValidated validationAnnotation
+            BeanValidationFeatureSet features, @Nullable JsonValidated validationAnnotation
     ) {
         if (KotlinDetector.isKotlinType(src.handledType())) {
             return new KotlinValidatingBeanDeserializer(src, validatorFactory, features, validationAnnotation);
@@ -76,71 +78,51 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
 
 
     @Override
-    public void resolve(DeserializationContext ctxt) throws JsonMappingException {
-        super.resolve(ctxt);
+    public JsonDeserializer<?> createContextual(
+            DeserializationContext ctxt, @Nullable BeanProperty property
+    ) throws JsonMappingException {
 
-        List<SettableBeanProperty> toBeWrapped = null;
-        List<SettableBeanProperty> wrappedProperties = null;
+        BeanDeserializerBase deser = (BeanDeserializerBase) super.createContextual(ctxt, property);
 
-        // If we have any bean-typed properties annotated with @JsonValidated or @Valid (but not the property type),
-        // wrap them so they can use a ValidatingBeanDeserializer too
-        for (SettableBeanProperty beanProperty : _beanProperties) {
-
-            JsonValidated annotation = beanProperty.getAnnotation(JsonValidated.class);
-            if (annotation == null) {
-                // Use @Valid annotation as an alternative, inheriting the JsonValidated from the containing bean
-                Valid validAnnotation = beanProperty.getAnnotation(Valid.class);
-                if (validAnnotation != null) {
-                    annotation = this.validationAnnotation;
-                }
-            }
-
-            if (annotation != null) {
-                JsonDeserializer<Object> valueDeserializer = beanProperty.getValueDeserializer();
-                if (valueDeserializer instanceof BeanDeserializerBase &&
-                        // no need to change if the property is already using ValidatingBeanDeserializer
-                        // (i.e. the type is also annotated)
-                        !(valueDeserializer instanceof ValidatingBeanDeserializer)) {
-
-                    if (toBeWrapped == null) {
-                        toBeWrapped = new ArrayList<>(_beanProperties.size());
-                        wrappedProperties = new ArrayList<>(_beanProperties.size());
-                    }
-                    toBeWrapped.add(beanProperty);
-                    wrappedProperties.add(
-                            beanProperty.withValueDeserializer(
-                                    ValidatingBeanDeserializer.create(
-                                            (BeanDeserializerBase) valueDeserializer, validatorFactory, features,
-                                            annotation
-                                    )
-                            )
-                    );
-                }
-            }
+        if (property == null) {
+            // at the root level, no need to contextualize
+            return deser;
         }
 
-        if (toBeWrapped != null) {
-            SettableBeanProperty[] creatorProperties = null;
+        JsonValidated validationAnnotation = property.getAnnotation(JsonValidated.class);
+        if (validationAnnotation == null) {
+            validationAnnotation = this.validationAnnotation;
+        }
+        if (validationAnnotation == null && property.getAnnotation(Valid.class) != null) {
+            validationAnnotation = (JsonValidated) ctxt.getAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION);
+        }
 
-            if (_propertyBasedCreator != null) {
-                creatorProperties = _propertyBasedCreator.properties().toArray(new SettableBeanProperty[0]);
-                Arrays.sort(creatorProperties, Comparator.comparing(SettableBeanProperty::getCreatorIndex));
-            }
-
-            for (int i = 0, len = toBeWrapped.size(); i < len; i++) {
-                _replaceProperty(_beanProperties, creatorProperties,
-                        toBeWrapped.get(i), wrappedProperties.get(i));
-            }
-
-            if (_propertyBasedCreator != null) {
-                assert creatorProperties != null;
-                _propertyBasedCreator = PropertyBasedCreator.construct(ctxt, _valueInstantiator,
-                        creatorProperties, _beanProperties);
-            }
+        if (validationAnnotation != null) {
+            return create(deser, validatorFactory, features, validationAnnotation);
+        } else {
+            return deser;
         }
     }
 
 
+    @Override
+    public void resolve(DeserializationContext ctxt) throws JsonMappingException {
+
+        JsonValidated oldValidatedAnnotation = null;
+        if (this.validationAnnotation != null) {
+            // Store our own @JsonValidated annotation in the context, so it propagates to nested bean deserializers
+            oldValidatedAnnotation = (JsonValidated) ctxt.getAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION);
+            ctxt.setAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION, this.validationAnnotation);
+        }
+
+        try {
+            super.resolve(ctxt);
+        } finally {
+            if (this.validationAnnotation != null) {
+                ctxt.setAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION, oldValidatedAnnotation);
+            }
+        }
+    }
 
 
     /**
@@ -148,6 +130,11 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
      */
     @Override
     public Object deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+
+        if (validationAnnotation == null) {
+            return super.deserialize(p, ctxt);
+        }
+
         Object bean = _deserialize(p, ctxt);
 
         if (bean != null && features.isEnabled(BeanValidationFeature.VALIDATE_BEAN_AFTER_CONSTRUCTION)) {
@@ -187,6 +174,11 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
      */
     @Override
     public Object deserialize(JsonParser p, DeserializationContext ctxt, Object bean) throws IOException {
+
+        if (validationAnnotation == null) {
+            return super.deserialize(p, ctxt, bean);
+        }
+
         // [databind#631]: Assign current value, to be accessible by custom serializers
         p.setCurrentValue(bean);
         if (_injectables != null) {
@@ -433,6 +425,10 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
     @SuppressWarnings("resource")
     protected Object _deserializeUsingPropertyBased(JsonParser p, DeserializationContext ctxt) throws IOException {
 
+        if (validationAnnotation == null) {
+            return super._deserializeUsingPropertyBased(p, ctxt);
+        }
+
         final PropertyBasedCreator creator = _propertyBasedCreator;
 
         // In addition to the default PropertyValueBuffer we also need to store constraint violations
@@ -613,6 +609,8 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
     private ConstraintViolation<?> handleMismatchedInput(
             JsonParser p, @Nullable Object bean, SettableBeanProperty prop
     ) {
+        assert validationAnnotation != null;
+
         Object invalidValue;
         ConstraintDescriptor<?> constraintDescriptor;
 

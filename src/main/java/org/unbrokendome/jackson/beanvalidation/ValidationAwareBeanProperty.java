@@ -18,41 +18,48 @@ import java.util.Set;
 
 
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-public abstract class AbstractValidationAwareProperty<P extends SettableBeanProperty>
+abstract class ValidationAwareBeanProperty<P extends SettableBeanProperty>
         extends SettableBeanProperty {
 
     private static final Object SKIP_NULL_VALUE = new Object();
 
     protected final P delegate;
     protected final Validator validator;
+    private boolean validationEnabled;
 
 
     @SuppressWarnings("unchecked")
-    protected AbstractValidationAwareProperty(SettableBeanProperty src, Validator validator) {
+    protected ValidationAwareBeanProperty(SettableBeanProperty src, Validator validator, boolean validationEnabled) {
         super(src);
         this.delegate = (P) src;
         this.validator = validator;
+        this.validationEnabled = validationEnabled;
     }
 
 
-    protected abstract SettableBeanProperty withDelegate(SettableBeanProperty delegate);
+    protected abstract SettableBeanProperty withDelegate(SettableBeanProperty delegate, boolean validationEnabled);
 
 
     @Override
     public final SettableBeanProperty withValueDeserializer(JsonDeserializer<?> deser) {
-        return withDelegate(delegate.withValueDeserializer(deser));
+        return withDelegate(delegate.withValueDeserializer(deser), validationEnabled);
     }
 
 
     @Override
     public final SettableBeanProperty withName(PropertyName newName) {
-        return withDelegate(delegate.withName(newName));
+        return withDelegate(delegate.withName(newName), validationEnabled);
     }
 
 
     @Override
     public final SettableBeanProperty withNullProvider(NullValueProvider nva) {
-        return withDelegate(delegate.withNullProvider(nva));
+        return withDelegate(delegate.withNullProvider(nva), validationEnabled);
+    }
+
+
+    void enableValidation() {
+        this.validationEnabled = true;
     }
 
 
@@ -89,7 +96,7 @@ public abstract class AbstractValidationAwareProperty<P extends SettableBeanProp
     private boolean validatePropertyOnInvalidOject(
             JsonParser p, DeserializationContext ctxt, Object instance
     ) throws IOException {
-        if (instance instanceof InvalidObject) {
+        if (validationEnabled && instance instanceof InvalidObject) {
             // Instance wasn't even created because there were already validation errors in the creator.
             // Just validate the properties but don't set them.
             Object value = deserializeValue(p, ctxt);

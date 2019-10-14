@@ -143,6 +143,23 @@ public class PersonRequest {
 }
 ----
 
+To cascade the bean validation to nested beans, you can also annotate the property or constructor parameter
+with `@Valid`.
+
+[source,java]
+----
+@JsonValidated
+public class PersonRequest {
+
+    static class Name {
+        @NotEmpty String firstName;
+        @NotEmpty String lastName;
+    }
+
+    @Valid Name name;
+}
+----
+
 
 == Handling Violations
 

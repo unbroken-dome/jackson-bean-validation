@@ -3,15 +3,10 @@ package org.unbrokendome.jackson.beanvalidation;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.deser.BeanDeserializerBase;
-import com.fasterxml.jackson.databind.deser.BeanDeserializerBuilder;
-import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
-import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
-import com.fasterxml.jackson.databind.deser.ValueInstantiator;
+import com.fasterxml.jackson.databind.deser.*;
 import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
 import com.fasterxml.jackson.databind.deser.impl.MethodProperty;
 import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
-import com.fasterxml.jackson.databind.type.CollectionType;
 
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
@@ -41,10 +36,13 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
         Validator validator = validatorFactory.getValidator();
 
         for (SettableBeanProperty property : properties) {
+            if (property instanceof ValidationAwareBeanProperty<?>) {
+                continue;
+            }
             if (property instanceof MethodProperty) {
-                builder.addOrReplaceProperty(new ValidationAwareMethodProperty(property, validator), true);
+                builder.addOrReplaceProperty(new ValidationAwareMethodProperty(property, validator, false), true);
             } else if (property instanceof FieldProperty) {
-                builder.addOrReplaceProperty(new ValidationAwareFieldProperty(property, validator), true);
+                builder.addOrReplaceProperty(new ValidationAwareFieldProperty(property, validator, false), true);
             }
         }
 
@@ -62,22 +60,21 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
     public JsonDeserializer<?> modifyDeserializer(
             DeserializationConfig config, BeanDescription beanDesc, JsonDeserializer<?> deserializer
     ) {
-        JsonValidated annotation = beanDesc.getClassAnnotations().get(JsonValidated.class);
-        if (annotation != null && deserializer instanceof BeanDeserializerBase) {
+        // If deserializer is already a ValidatingBeanDeserializer, no need to modify anything
+        if (deserializer instanceof ValidatingBeanDeserializer) {
+            return deserializer;
+        }
+
+        if (deserializer instanceof BeanDeserializerBase) {
+
+            // If the bean class is annotated with @JsonValidated, construct a validating deserializer
+            JsonValidated annotation = beanDesc.getClassAnnotations().get(JsonValidated.class);
             return ValidatingBeanDeserializer.create(
                     (BeanDeserializerBase) deserializer, validatorFactory, features, annotation
             );
+
         } else {
             return deserializer;
         }
-    }
-
-
-    @Override
-    public JsonDeserializer<?> modifyCollectionDeserializer(
-            DeserializationConfig config, CollectionType type,
-            BeanDescription beanDesc, JsonDeserializer<?> deserializer
-    ) {
-        return super.modifyCollectionDeserializer(config, type, beanDesc, deserializer);
     }
 }

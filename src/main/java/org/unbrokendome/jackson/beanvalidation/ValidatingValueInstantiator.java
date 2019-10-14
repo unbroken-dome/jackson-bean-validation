@@ -32,6 +32,7 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
     private final ValidatorFactory validatorFactory;
     private final BeanValidationFeatureSet features;
+    private boolean validationEnabled = false;
 
 
     ValidatingValueInstantiator(
@@ -44,11 +45,24 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
     }
 
 
+    public boolean isValidationEnabled() {
+        return validationEnabled;
+    }
+
+
+    void enableValidation(boolean enabled) {
+        this.validationEnabled = enabled;
+    }
+
+
     @Override
     public Object createFromObjectWith(
-            DeserializationContext ctxt,
-            SettableBeanProperty[] props, PropertyValueBuffer buffer
+            DeserializationContext ctxt, SettableBeanProperty[] props, PropertyValueBuffer buffer
     ) throws IOException {
+
+        if (!validationEnabled) {
+            return super.createFromObjectWith(ctxt, props, buffer);
+        }
 
         if (getWithArgsCreator() == null) { // sanity-check; caller should check
             return super.createFromObjectWith(ctxt, props, buffer);
@@ -85,7 +99,11 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
     @Override
     public Object createFromObjectWith(DeserializationContext ctxt, Object[] args) throws IOException {
-        return createFromObjectWith(ctxt, args, Collections.emptyMap());
+        if (validationEnabled) {
+            return createFromObjectWith(ctxt, args, Collections.emptyMap());
+        } else {
+            return super.createFromObjectWith(ctxt, args);
+        }
     }
 
 
@@ -269,7 +287,7 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
 
     private void validateSimpleConstructor(@Nullable AnnotatedWithParams creator, @Nullable Object value) {
-        if (creator instanceof AnnotatedConstructor) {
+        if (validationEnabled && creator instanceof AnnotatedConstructor) {
             ExecutableValidator validator = validatorFactory.getValidator().forExecutables();
             Set<? extends ConstraintViolation<?>> violations = validator.validateConstructorParameters(
                     ((AnnotatedConstructor) _fromStringCreator).getAnnotated(),
