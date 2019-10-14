@@ -4,7 +4,7 @@ import java.util.Date
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.3.20"
+    kotlin("jvm") version "1.3.50"
     `maven-publish`
     id("com.jfrog.bintray") version "1.8.4"
 }
