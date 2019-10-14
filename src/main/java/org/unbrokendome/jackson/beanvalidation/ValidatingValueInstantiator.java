@@ -54,6 +54,9 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
             return super.createFromObjectWith(ctxt, props, buffer);
         }
 
+        // Call getParameters eagerly to make sure all the violations are known (result will be cached)
+        buffer.getParameters(props);
+
         Map<Integer, Set<ConstraintViolation<?>>> parameterViolations;
         if (buffer instanceof ValidationAwarePropertyValueBuffer) {
             parameterViolations = ((ValidationAwarePropertyValueBuffer) buffer).getParameterViolations();
