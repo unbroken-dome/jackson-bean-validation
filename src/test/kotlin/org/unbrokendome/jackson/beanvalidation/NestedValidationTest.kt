@@ -32,8 +32,9 @@ class NestedValidationTest : AbstractValidationTest() {
     }
 
 
+
     @Test
-    fun shouldNotReportViolationInNotAnnotatedNestedBean() {
+    fun `should not report violation in not annotated nested bean`() {
 
         val json = """{ "nested": { "value": null } }"""
 
@@ -49,7 +50,7 @@ class NestedValidationTest : AbstractValidationTest() {
 
 
     @Test
-    fun shouldReportViolationInAnnotatedNestedBean() {
+    fun `should report violation in annotated nested bean`() {
 
         val json = """{ "nested": { "value": null } }"""
 
@@ -71,7 +72,7 @@ class NestedValidationTest : AbstractValidationTest() {
 
 
     @Test
-    fun shouldReportViolationInNestedPropertyMarkedAsValid() {
+    fun `should report violation in @Valid-annotated nested bean`() {
 
         val json = """{ "nested": { "value": null } }"""
 

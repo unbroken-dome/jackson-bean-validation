@@ -22,11 +22,13 @@ class ValidInputTest : AbstractValidationTest() {
 
     @JsonValidated
     class TestBean1
-    @JsonCreator constructor(@param:JsonProperty("date") val date: LocalDate)
+    @JsonCreator constructor(
+        @param:JsonProperty("date") val date: LocalDate
+    )
 
 
     @Test
-    fun shouldReportMismatchedInputAsViolation() {
+    fun `should report mismatched input as violation`() {
 
         val json = """{ "date": "20xx-11-15" }"""
 
@@ -49,7 +51,7 @@ class ValidInputTest : AbstractValidationTest() {
 
 
     @Test
-    fun shouldReportMismatchedInputAndValidateSetterProperties() {
+    fun `should report mismatched input and validate setter properties`() {
 
         val json = """{ "date": "20xx-11-15", "otherValue": null }"""
 
@@ -72,7 +74,7 @@ class ValidInputTest : AbstractValidationTest() {
 
 
     @Test
-    fun shouldReportMismatchedInputAndValidateCreatorParams() {
+    fun `should report mismatched input and validate creator params`() {
 
         val json = """{ "date": "20xx-11-15", "otherValue": null }"""
 
