@@ -348,7 +348,7 @@ still be honored if present (for example, to customize the validation message).
 
 == Jackson Version Compatibility
 
-The module requires Jackson 2.9.x; it has been tested to be compatible with all 2.9.x versions up to 2.9.8.
+The module requires Jackson 2.9.x or higher; it has been tested to be compatible with all 2.9.x versions up to 2.9.9.
 It does not work with Jackson 2.8.x.
 
 

@@ -21,7 +21,7 @@ testSets {
 }
 
 
-val jacksonVersion = "2.9.8"
+val jacksonVersion = "2.10.0"
 
 
 configurations {
@@ -79,7 +79,7 @@ tasks.withType<Test> {
 
 
 
-val jacksonCompatVersions: List<String> = (0..7).map { "2.9.$it" }
+val jacksonCompatVersions: List<String> = (0..9).map { "2.9.$it" }
 for (compatVersion in jacksonCompatVersions) {
     val testConfiguration: Configuration = project.configurations.create("jacksonCompatTest_$compatVersion")
     testConfiguration.extendsFrom(configurations["testRuntimeClasspath"])
