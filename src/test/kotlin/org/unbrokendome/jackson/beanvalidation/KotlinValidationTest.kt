@@ -5,7 +5,6 @@ import assertk.assertions.hasSize
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
 import javax.validation.constraints.NotNull
@@ -21,11 +20,19 @@ class KotlinValidationTest : AbstractValidationTest() {
 
     @JsonValidated
     data class BeanWithNotNullCreatorProps(
-        @param:NotNull
         val left: String,
-        @param:NotNull
         val right: Int
     )
+
+    @JsonValidated
+    class BeanWithNotNullVarProp {
+        var value: String = ""
+    }
+
+    @JsonValidated
+    class BeanWithLateinitVarProp {
+        lateinit var value: String
+    }
 
     @Test
     fun `should report NotNull violation on null creator String property`() {
@@ -72,5 +79,52 @@ class KotlinValidationTest : AbstractValidationTest() {
 
         assertThat(violations).hasSize(1)
         assertThat(violations).hasViolation<JsonRequired>("right")
+    }
+
+
+    @Test
+    fun `should report NotNull violation on var property`() {
+
+        val json = """{ "value": null }"""
+
+        val violations = assertViolationsOnDeserialization<BeanWithLateinitVarProp>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<NotNull>("value")
+    }
+
+
+    @Test
+    fun `should report NotNull violation on lateinit var property`() {
+
+        val json = """{ "value": null }"""
+
+        val violations = assertViolationsOnDeserialization<BeanWithLateinitVarProp>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<NotNull>("value")
+    }
+
+
+    @Test
+    fun `should report NotNull violation on unset lateinit var property`() {
+
+        val json = "{ }"
+
+        val violations = assertViolationsOnDeserialization<BeanWithLateinitVarProp>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<NotNull>("value")
+    }
+
+
+    @Test
+    fun `should not validate unset lateinit var property if feature is unset`() {
+
+        beanValidationModule.disable(BeanValidationFeature.VALIDATE_KOTLIN_LATEINIT_VARS)
+
+        val json = "{ }"
+
+        assertNoViolationsOnDeserialization<BeanWithLateinitVarProp>(json)
     }
 }

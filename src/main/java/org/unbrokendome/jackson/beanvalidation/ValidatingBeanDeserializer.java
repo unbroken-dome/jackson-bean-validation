@@ -26,6 +26,7 @@ import javax.validation.Path;
 import javax.validation.Valid;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
+import javax.validation.constraints.NotNull;
 import javax.validation.metadata.ConstraintDescriptor;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 
-final class ValidatingBeanDeserializer extends BeanDeserializer {
+class ValidatingBeanDeserializer extends BeanDeserializer {
 
     private final ValidatorFactory validatorFactory;
     private final BeanValidationFeatureSet features;
@@ -59,6 +60,18 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
         this.messageInterpolator = validatorFactory.getMessageInterpolator();
         this.features = features;
         this.validationAnnotation = validationAnnotation;
+    }
+
+
+    static ValidatingBeanDeserializer create(
+            BeanDeserializerBase src, ValidatorFactory validatorFactory,
+            BeanValidationFeatureSet features, JsonValidated validationAnnotation
+    ) {
+        if (KotlinDetector.isKotlinType(src.handledType())) {
+            return new KotlinValidatingBeanDeserializer(src, validatorFactory, features, validationAnnotation);
+        }
+
+        return new ValidatingBeanDeserializer(src, validatorFactory, features, validationAnnotation);
     }
 
 
@@ -94,9 +107,14 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
                         wrappedProperties = new ArrayList<>(_beanProperties.size());
                     }
                     toBeWrapped.add(beanProperty);
-                    wrappedProperties.add(beanProperty.withValueDeserializer(
-                            new ValidatingBeanDeserializer((BeanDeserializerBase) valueDeserializer,
-                                    validatorFactory, features, annotation)));
+                    wrappedProperties.add(
+                            beanProperty.withValueDeserializer(
+                                    ValidatingBeanDeserializer.create(
+                                            (BeanDeserializerBase) valueDeserializer, validatorFactory, features,
+                                            annotation
+                                    )
+                            )
+                    );
                 }
             }
         }
@@ -238,19 +256,18 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
             violations = new LinkedHashSet<>(previousViolations);
         }
 
-        // There are no more properties in the input; however we still need to validate
-        // properties that have not been set explicitly
         if (bean instanceof InvalidObject) {
+
             Class<?> beanType = ((InvalidObject) bean).getType();
+
             // If we haven't instantiated the bean, we can only guess that unset properties would be
             // left to the default value for the Java type (e.g. 0 for ints and null for reference types)
             for (String propNameToValidate : propsToValidate) {
                 SettableBeanProperty prop = _beanProperties.find(propNameToValidate);
-                String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
                 Object value = prop.getNullValueProvider().getNullValue(ctxt);
 
-                Set<? extends ConstraintViolation<?>> propertyViolations =
-                        validator.validateValue(beanType, beanPropertyName, value);
+                Set<? extends ConstraintViolation<?>> propertyViolations = _validateValue(beanType, prop, value);
+
                 if (!propertyViolations.isEmpty()) {
                     if (violations == null) {
                         violations = new HashSet<>();
@@ -260,9 +277,9 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
             }
 
         } else {
-            // if we have an actual bean, we can validate the properties directly, like in vanilla mode
+            // if we have an actual bean, we can validate the properties directly
             for (String propNameToValidate : propsToValidate) {
-                violations = validateProperty(bean, propNameToValidate, violations);
+                violations = _validateProperty(bean, propNameToValidate, violations);
             }
         }
 
@@ -302,7 +319,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
                             continue;
                         }
 
-                        Object value = deserializeProperty(p, ctxt, bean, prop);
+                        Object value = _deserializeProperty(p, ctxt, bean, prop);
                         prop.set(bean, value);
 
                     } catch (ConstraintViolationException ex) {
@@ -327,24 +344,12 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
         // If there are any properties left that we haven't encountered, they will be left with their
         // default value (or whatever the constructor initialized them with). Since these properties didn't
         // go through deserialization, we have to validate them now.
-        if (!propsToValidate.isEmpty()) {
-            for (String propName : propsToValidate) {
-                violations = validateProperty(bean, propName, violations);
-            }
-        }
-
-        // TODO handle @AssertValid here?
-
-        if (violations != null && !violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
-        }
-
-        return bean;
+        return validateRemainingProperties(bean, ctxt, propsToValidate, violations);
     }
 
 
     @Nullable
-    private Set<ConstraintViolation<?>> validateProperty(
+    protected Set<ConstraintViolation<?>> _validateProperty(
             Object bean, String propName, @Nullable Set<ConstraintViolation<?>> violationsCollector
     ) {
         SettableBeanProperty prop = _beanProperties.find(propName);
@@ -392,6 +397,14 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
     }
 
 
+    protected Set<? extends ConstraintViolation<?>> _validateValue(
+            Class<?> beanType, SettableBeanProperty prop, @Nullable Object value
+    ) {
+        String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
+        return validator.validateValue(beanType, beanPropertyName, value);
+    }
+
+
     /**
      * Method called to deserialize bean using "property-based creator":
      * this means that a non-default constructor or factory method is
@@ -434,7 +447,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
                 Object value;
                 try {
-                    value = deserializeProperty(p, ctxt, null, creatorProp);
+                    value = _deserializeProperty(p, ctxt, null, creatorProp);
 
                 } catch (ConstraintViolationException ex) {
                     buffer.assignViolations(creatorProp, ex.getConstraintViolations());
@@ -484,7 +497,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
             // regular property? needs buffering
             SettableBeanProperty prop = _beanProperties.find(propName);
             if (prop != null) {
-                buffer.bufferProperty(prop, deserializeProperty(p, ctxt, null, prop));
+                buffer.bufferProperty(prop, _deserializeProperty(p, ctxt, null, prop));
             }
             // Things marked as ignorable should not be passed to any setter
             if (_ignorableProps != null && _ignorableProps.contains(propName)) {
@@ -538,7 +551,7 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
 
 
     @SuppressWarnings("unchecked")
-    private Object deserializeProperty(
+    protected Object _deserializeProperty(
             JsonParser p, DeserializationContext ctxt, @Nullable Object bean, SettableBeanProperty prop
     ) throws IOException {
 
@@ -584,23 +597,52 @@ final class ValidatingBeanDeserializer extends BeanDeserializer {
     private ConstraintViolation<?> handleMismatchedInput(
             JsonParser p, @Nullable Object bean, SettableBeanProperty prop
     ) {
-        JsonValidInput constraintAnnotation = prop.getAnnotation(JsonValidInput.class);
-        if (constraintAnnotation == null) {
-            constraintAnnotation = JsonConstraints.validInput(validationAnnotation.validInputMessage());
-        }
-
-        ConstraintDescriptor<?> constraintDescriptor =
-                new JsonValidInputConstraintDescriptor(constraintAnnotation);
-
         Object invalidValue;
-        try {
-            invalidValue = p.getText();
-        } catch (IOException ex) {
+        ConstraintDescriptor<?> constraintDescriptor;
+
+        if (features.isEnabled(BeanValidationFeature.REPORT_NULL_PRIMITIVE_AS_NOTNULL_VIOLATION) &&
+                p.currentToken() == JsonToken.VALUE_NULL &&
+                prop.getType().isPrimitive()) {
+
+            constraintDescriptor = createNotNullConstraintDescriptor(prop);
             invalidValue = null;
+
+        } else {
+
+            JsonValidInput constraintAnnotation = prop.getAnnotation(JsonValidInput.class);
+            if (constraintAnnotation == null) {
+                constraintAnnotation = JsonConstraints.validInput(validationAnnotation.validInputMessage());
+            }
+            constraintDescriptor = new JsonValidInputConstraintDescriptor(constraintAnnotation);
+
+            try {
+                invalidValue = p.getText();
+            } catch (IOException ex) {
+                invalidValue = null;
+            }
         }
 
         return ConstraintViolationUtils.create(
                 bean, (Class) handledType(), null, PropertyPathUtils.constructPropertyPath(prop, features),
                 invalidValue, constraintDescriptor, messageInterpolator);
+    }
+
+
+    @SuppressWarnings("unchecked")
+    protected ConstraintViolation<?> _createNotNullViolation(@Nullable Object bean, SettableBeanProperty prop) {
+        ConstraintDescriptor<?> constraintDescriptor = createNotNullConstraintDescriptor(prop);
+        return ConstraintViolationUtils.create(
+                bean, (Class) handledType(), null, PropertyPathUtils.constructPropertyPath(prop, features),
+                null, constraintDescriptor, messageInterpolator);
+    }
+
+
+    @Nonnull
+    private ConstraintDescriptor<?> createNotNullConstraintDescriptor(SettableBeanProperty prop) {
+        NotNull notNullAnnotation = prop.getAnnotation(NotNull.class);
+        if (notNullAnnotation == null) {
+            notNullAnnotation = JsonConstraints.notNull();
+        }
+        return new NotNullConstraintDescriptor(notNullAnnotation);
     }
 }

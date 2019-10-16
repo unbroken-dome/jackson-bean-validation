@@ -2,6 +2,7 @@ package org.unbrokendome.jackson.beanvalidation;
 
 import javax.annotation.Nullable;
 import javax.validation.Payload;
+import javax.validation.constraints.NotNull;
 import java.lang.annotation.Annotation;
 
 
@@ -97,5 +98,30 @@ final class JsonConstraints {
         } else {
             return new DefaultJsonRequired(messageTemplate);
         }
+    }
+
+
+    private static final class DefaultNotNull
+            extends AbstractDefaultAnnotation implements NotNull {
+
+        private static final String DEFAULT_MESSAGE = "{javax.validation.constraints.NotNull.message}";
+
+        @Override
+        public String message() {
+            return DEFAULT_MESSAGE;
+        }
+
+        @Override
+        public Class<? extends Annotation> annotationType() {
+            return NotNull.class;
+        }
+    }
+
+
+    private static final NotNull DEFAULT_NOT_NULL = new DefaultNotNull();
+
+
+    static NotNull notNull() {
+        return DEFAULT_NOT_NULL;
     }
 }

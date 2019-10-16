@@ -16,8 +16,10 @@ abstract class AbstractValidationTest {
         .messageInterpolator(ParameterMessageInterpolator())
         .buildValidatorFactory()
 
+    protected val beanValidationModule: BeanValidationModule = BeanValidationModule(validatorFactory)
+
     protected val objectMapper: ObjectMapper = ObjectMapper()
-        .registerModule(BeanValidationModule(validatorFactory))
+        .registerModule(beanValidationModule)
 
 
     protected fun assertViolationsOnDeserialization(

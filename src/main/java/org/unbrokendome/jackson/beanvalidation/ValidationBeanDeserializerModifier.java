@@ -64,8 +64,9 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
     ) {
         JsonValidated annotation = beanDesc.getClassAnnotations().get(JsonValidated.class);
         if (annotation != null && deserializer instanceof BeanDeserializerBase) {
-            return new ValidatingBeanDeserializer((BeanDeserializerBase) deserializer, validatorFactory,
-                    features, annotation);
+            return ValidatingBeanDeserializer.create(
+                    (BeanDeserializerBase) deserializer, validatorFactory, features, annotation
+            );
         } else {
             return deserializer;
         }

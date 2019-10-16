@@ -255,7 +255,7 @@ there cannot be a second `ValidationMessages.properties` on the classpath.
 The module should work well with Kotlin, and together with the `KotlinModule` from `jackson-module-kotlin`.
 I would recommend to always use `data` classes where all properties are initialized in the constructor.
 
-It is especially useful to perform `@NotNull` checks on constructor arguments that are _not_ nullable in Kotlin,
+It is especially useful to perform `NotNull` checks on constructor arguments that are _not_ nullable in Kotlin,
 because the validation happens before the constructor is called:
 
 [source,kotlin]
@@ -267,17 +267,33 @@ data class PersonRequest(
     @param:Past val dateOfBirth: LocalDate)
 ----
 
+The validating deserializer will automatically detect nullability of constructor parameter types, and treat the
+parameters with non-nullable types as if they had an implicit `@NotNull` annotation. So the following is equivalent
+to the example above:
+
+[source,kotlin]
+----
+@JsonValidated
+data class PersonRequest(
+    val firstName: String,
+    val lastName: String,
+    @param:Past val dateOfBirth: LocalDate)
+----
+
 So, you no longer need to use `String?` just to validate `@NotNull` and use those ugly double exclamation
 marks everywhere.
 
+[INFO]
+====
 Remember that annotations on `val` parameters in the constructor should be qualified with `@param:`. You can place
 multiple constraints with the shorthand syntax e.g. `@param:[NotNull Size(min = 3)]`.
-
+====
 
 === Handling of Required Parameters and Primitives
 
 The standard `KotlinModule` automatically treats all constructor parameters as required if they are not marked as
-nullable (e.g. `String` instead of `String?`).
+nullable (e.g. `String` instead of `String?`). If such parameters are missing in the JSON input, a violation of
+`JsonRequired` would be raised.
 
 However, for primitive types this behavior only applies if the deserialization feature `FAIL_ON_NULL_FOR_PRIMITIVES`
 is enabled (it is disabled by default). Otherwise, `null` or missing values are mapped to the default value of the
@@ -288,13 +304,17 @@ I would recommend to enable `FAIL_ON_NULL_FOR_PRIMITIVES` when using Kotlin toge
 
 === Late-init Properties
 
-Kotlin's `lateinit` properties are currently not well supported, and probably won't be.
-They are not very suitable for validation anyway, as it is impossible to
-check that the property has been set without triggering the `UninitializedPropertyAccessException`.
-(At least not without having `kotlin-reflect` on the classpath, but this would add a dependency on Kotlin libraries
-that would otherwise be unnecessary).
+Kotlin's `lateinit var` properties are deserialized like other properties, and their values will be validated based on
+the annotations on the property. In addition, `lateinit var` properties are treated as if they had an implicit
+`NotNull` constraint, because they cannot have nullable or primitive types. An explicit `@NotNull` annotation will
+still be honored if present (for example, to customize the validation message).
 
-Please avoid using `lateinit` properties in classes that should be deserialized from JSON.
+- If the input JSON contains an explicit `null` value for the property, it will always be considered a violation of
+  the `NotNull` constraint.
+- If the input JSON does not contain the property at all, it will be considered a violation of `NotNull` by default,
+  but this behavior can be controlled with the `BeanValidationFeature.VALIDATE_KOTLIN_LATEINIT_VARS` feature flag.
+  You may want to switch off this behavior if you intend to initialize the `lateinit var` properties programmatically
+  after deserialization.
 
 
 == Jackson Version Compatibility

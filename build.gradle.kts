@@ -22,6 +22,8 @@ dependencies {
     api("javax.validation:validation-api:2.0.1.Final")
 
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
+    compileOnly(kotlin("stdlib-jdk8"))
+    compileOnly(kotlin("reflect"))
 
     testImplementation(kotlin("stdlib-jdk8"))
     testImplementation(kotlin("reflect"))
