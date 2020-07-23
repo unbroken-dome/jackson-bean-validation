@@ -1,13 +1,16 @@
 package org.unbrokendome.jackson.beanvalidation;
 
 
+import com.fasterxml.jackson.core.JsonStreamContext;
 import com.fasterxml.jackson.databind.deser.CreatorProperty;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
 import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.validation.Path;
 import java.lang.reflect.Constructor;
+import java.util.Collection;
 
 
 final class PropertyPathUtils {
@@ -18,6 +21,12 @@ final class PropertyPathUtils {
 
     @Nonnull
     static Path constructPropertyPath(SettableBeanProperty prop, BeanValidationFeatureSet features) {
+        return constructPropertyPath(prop, features, null);
+    }
+
+    @Nonnull
+    static Path constructPropertyPath(SettableBeanProperty prop, BeanValidationFeatureSet features,
+                                      @Nullable JsonStreamContext parsingContext) {
 
         PathBuilder propertyPathBuilder = PathBuilder.create()
                 .appendBeanNode();
@@ -28,6 +37,15 @@ final class PropertyPathUtils {
 
         } else {
             propertyName = prop.getName();
+        }
+
+        if (parsingContext != null && parsingContext.inArray()) {
+            if (parsingContext.hasCurrentIndex()) {
+                propertyName += "[" + parsingContext.getCurrentIndex() + "]";
+            } else if (parsingContext.getParent().getCurrentValue() instanceof Collection) {
+                Collection currentValue = (Collection) parsingContext.getParent().getCurrentValue();
+                propertyName += "[" + currentValue.size() + "]";
+            }
         }
 
         if (prop instanceof CreatorProperty &&

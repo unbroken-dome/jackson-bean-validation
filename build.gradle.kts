@@ -47,6 +47,7 @@ dependencies {
     testImplementation(kotlin("reflect"))
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.3.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.3.2")
     testImplementation("com.willowtreeapps.assertk:assertk-jvm:0.13")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")

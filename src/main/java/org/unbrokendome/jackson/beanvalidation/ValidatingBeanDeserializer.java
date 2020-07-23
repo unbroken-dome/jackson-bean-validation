@@ -584,7 +584,7 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
 
         } catch (ConstraintViolationException ex) {
 
-            Path propertyBasePath = PropertyPathUtils.constructPropertyPath(prop, features);
+            Path propertyBasePath = PropertyPathUtils.constructPropertyPath(prop, features, p.getParsingContext());
             propertyViolations = new LinkedHashSet<>(ex.getConstraintViolations().size());
 
             for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
@@ -637,7 +637,8 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
         }
 
         return ConstraintViolationUtils.create(
-                bean, (Class) handledType(), null, PropertyPathUtils.constructPropertyPath(prop, features),
+                bean, (Class) handledType(), null,
+                PropertyPathUtils.constructPropertyPath(prop, features, p.getParsingContext()),
                 invalidValue, constraintDescriptor, messageInterpolator);
     }
 
