@@ -9,7 +9,7 @@ import javax.validation.ConstraintViolationException
 import javax.validation.Validation
 
 
-abstract class AbstractValidationTest {
+abstract class AbstractValidationTest(constructorValidatorFactory: ConstructorValidatorFactory? = null) {
 
     private val validatorFactory = Validation.byDefaultProvider()
         .configure()
@@ -17,6 +17,7 @@ abstract class AbstractValidationTest {
         .buildValidatorFactory()
 
     protected val beanValidationModule: BeanValidationModule = BeanValidationModule(validatorFactory)
+        .setConstructorValidatorFactory(constructorValidatorFactory)
 
     protected val objectMapper: ObjectMapper = ObjectMapper()
         .registerModule(beanValidationModule)

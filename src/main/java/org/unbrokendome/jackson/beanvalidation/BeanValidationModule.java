@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 
+import javax.annotation.Nullable;
 import javax.validation.ConstraintViolationException;
 import javax.validation.ValidatorFactory;
 import java.io.IOException;
@@ -15,6 +16,7 @@ public final class BeanValidationModule extends Module {
 
     private final ValidatorFactory validatorFactory;
     private final EnumSet<BeanValidationFeature> features;
+    @Nullable private ConstructorValidatorFactory constructorValidatorFactory;
 
 
     public BeanValidationModule(ValidatorFactory validatorFactory) {
@@ -56,13 +58,19 @@ public final class BeanValidationModule extends Module {
         return this;
     }
 
+    public BeanValidationModule setConstructorValidatorFactory(@Nullable ConstructorValidatorFactory factory) {
+        this.constructorValidatorFactory = factory;
+        return this;
+    }
+
 
     @Override
     public void setupModule(SetupContext context) {
 
         BeanValidationFeatureSet featureSet = new BeanValidationFeatureSet(features);
 
-        context.addBeanDeserializerModifier(new ValidationBeanDeserializerModifier(validatorFactory, featureSet));
+        context.addBeanDeserializerModifier(new ValidationBeanDeserializerModifier(
+                validatorFactory, featureSet, constructorValidatorFactory));
 
         context.addDeserializationProblemHandler(new DeserializationProblemHandler() {
             @Override

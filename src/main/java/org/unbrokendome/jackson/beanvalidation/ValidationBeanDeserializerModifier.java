@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
 import com.fasterxml.jackson.databind.deser.impl.MethodProperty;
 import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
 
+import javax.annotation.Nullable;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import java.util.ArrayList;
@@ -18,11 +19,14 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
 
     private final ValidatorFactory validatorFactory;
     private final BeanValidationFeatureSet features;
+    private final ConstructorValidatorFactory constructorValidatorFactory;
 
 
-    ValidationBeanDeserializerModifier(ValidatorFactory validatorFactory, BeanValidationFeatureSet features) {
+    ValidationBeanDeserializerModifier(ValidatorFactory validatorFactory, BeanValidationFeatureSet features,
+                                       @Nullable ConstructorValidatorFactory constructorValidatorFactory) {
         this.validatorFactory = validatorFactory;
         this.features = features;
+        this.constructorValidatorFactory = constructorValidatorFactory;
     }
 
 
@@ -49,7 +53,7 @@ final class ValidationBeanDeserializerModifier extends BeanDeserializerModifier 
         ValueInstantiator valueInstantiator = builder.getValueInstantiator();
         if (valueInstantiator instanceof StdValueInstantiator) {
             builder.setValueInstantiator(new ValidatingValueInstantiator(
-                    (StdValueInstantiator) valueInstantiator, validatorFactory, features));
+                    (StdValueInstantiator) valueInstantiator, validatorFactory, features, constructorValidatorFactory));
         }
 
         return builder;
