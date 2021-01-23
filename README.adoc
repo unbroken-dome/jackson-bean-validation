@@ -1,5 +1,5 @@
 = Jackson Bean Validation Module
-:version: 0.4.0
+:version: 0.5.0
 
 This is a https://github.com/FasterXML/jackson[Jackson] extension to perform
 https://beanvalidation.org/2.0/[Java Bean Validation] during deserialization.
