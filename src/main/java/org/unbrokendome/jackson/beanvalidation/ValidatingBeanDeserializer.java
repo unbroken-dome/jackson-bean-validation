@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -37,6 +38,10 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
     private final MessageInterpolator messageInterpolator;
     @Nullable
     private final JsonValidated validationAnnotation;
+
+
+    private static final ThreadLocal<Stack<JsonValidated>> TL_VALIDATION_ANNOTATION =
+            ThreadLocal.withInitial(Stack::new);
 
 
     ValidatingBeanDeserializer(
@@ -94,7 +99,8 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
             validationAnnotation = this.validationAnnotation;
         }
         if (validationAnnotation == null && property.getAnnotation(Valid.class) != null) {
-            validationAnnotation = (JsonValidated) ctxt.getAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION);
+            Stack<JsonValidated> validationAnnotations = TL_VALIDATION_ANNOTATION.get();
+            validationAnnotation = validationAnnotations.isEmpty() ? null : validationAnnotations.peek();
         }
 
         if (validationAnnotation != null) {
@@ -108,19 +114,17 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
     @Override
     public void resolve(DeserializationContext ctxt) throws JsonMappingException {
 
-        JsonValidated oldValidatedAnnotation = null;
         if (this.validationAnnotation != null) {
-            // Store our own @JsonValidated annotation in the context, so it propagates to nested bean deserializers
-            oldValidatedAnnotation = (JsonValidated) ctxt.getAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION);
-            ctxt.setAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION, this.validationAnnotation);
-        }
+            Stack<JsonValidated> validationAnnotations = TL_VALIDATION_ANNOTATION.get();
+            validationAnnotations.push(this.validationAnnotation);
 
-        try {
-            super.resolve(ctxt);
-        } finally {
-            if (this.validationAnnotation != null) {
-                ctxt.setAttribute(Constants.CONTEXT_KEY_VALIDATION_ANNOTATION, oldValidatedAnnotation);
+            try {
+                super.resolve(ctxt);
+            } finally {
+                validationAnnotations.pop();
             }
+        } else {
+            super.resolve(ctxt);
         }
     }
 
