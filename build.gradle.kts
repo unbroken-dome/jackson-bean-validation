@@ -1,17 +1,12 @@
-import com.jfrog.bintray.gradle.BintrayExtension
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import java.util.Date
-
 plugins {
     `java-library`
-    kotlin("jvm") version "1.3.50"
+    kotlin("jvm") version "1.5.0"
     `maven-publish`
-    id("com.jfrog.bintray") version "1.8.4"
-    id("org.unbroken-dome.test-sets") version "2.2.1"
+    id("org.unbroken-dome.test-sets") version "4.0.0"
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 testSets {
@@ -67,16 +62,17 @@ configure<JavaPluginConvention> {
 }
 
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
-    kotlinOptions.freeCompilerArgs = listOf("-Xjvm-default=enable")
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "1.8"
+        freeCompilerArgs = listOf("-Xjvm-default=enable")
+    }
 }
 
 
 tasks.withType<Test> {
     useJUnitPlatform()
 }
-
 
 
 val jacksonCompatVersions: List<String> = (0..9).map { "2.9.$it" }
@@ -126,32 +122,4 @@ publishing {
             artifact(javadocJar)
         }
     }
-}
-
-
-bintray {
-    user = project.extra["bintray_user"] as String
-    key = project.extra["bintray_key"] as String
-    dryRun = (project.extra["bintray_dryrun"] as String).toBoolean()
-
-    setPublications("mavenJava")
-
-    pkg(delegateClosureOf<BintrayExtension.PackageConfig> {
-        repo = project.extra["bintray_repo"] as String
-        name = project.name
-        desc = project.description
-        websiteUrl = project.extra["home_url"] as String
-        setLicenses("MIT")
-        setLabels(*(project.extra["bintray_labels"] as String).split(',').toTypedArray())
-
-        vcsUrl = project.extra["vcs_url"] as String
-        issueTrackerUrl = project.extra["issues_url"] as String
-        publicDownloadNumbers = true
-
-        version(delegateClosureOf<BintrayExtension.VersionConfig> {
-            name = project.version.toString()
-            released = Date().toString()
-            vcsTag = "v${project.version}"
-        })
-    })
 }
