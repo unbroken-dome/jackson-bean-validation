@@ -16,7 +16,7 @@ testSets {
 }
 
 
-val jacksonVersion = "2.10.0"
+val jacksonVersion = "2.11.4"
 
 
 configurations {
@@ -41,19 +41,21 @@ dependencies {
     testImplementation(kotlin("stdlib-jdk8"))
     testImplementation(kotlin("reflect"))
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.3.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.3.2")
-    testImplementation("com.willowtreeapps.assertk:assertk-jvm:0.13")
+    testImplementation(platform("org.junit:junit-bom:5.7.1"))
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
+    testImplementation("com.willowtreeapps.assertk:assertk-jvm:0.24")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
     testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
-    testImplementation("org.hibernate.validator:hibernate-validator:6.0.13.Final")
+    testImplementation("org.hibernate.validator:hibernate-validator:6.2.0.Final")
 
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.3.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.2.3")
 
-    "javaOnlyTestImplementation"("org.junit.jupiter:junit-jupiter-api:5.3.2")
-    "javaOnlyTestImplementation"("org.hibernate.validator:hibernate-validator:6.0.13.Final")
+    "javaOnlyTestImplementation"("org.junit.jupiter:junit-jupiter-api")
+    "javaOnlyTestImplementation"("org.hibernate.validator:hibernate-validator:6.2.0.Final")
 }
 
 
