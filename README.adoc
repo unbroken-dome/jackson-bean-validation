@@ -3,7 +3,7 @@
 :groupId: org.unbroken-dome.jackson-bean-validation
 :artifactId: jackson-bean-validation
 
-image::https://img.shields.io/badge/maven-central/v/{groupId}/{artifactId}[]
+image:https://img.shields.io/maven-central/v/{groupId}/{artifactId}[]
 
 This is a https://github.com/FasterXML/jackson[Jackson] extension to perform
 https://beanvalidation.org/2.0/[Java Bean Validation] during deserialization.
