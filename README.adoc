@@ -1,5 +1,9 @@
 = Jackson Bean Validation Module
 :version: 0.6.0
+:groupId: org.unbroken-dome.jackson-bean-validation
+:artifactId: jackson-bean-validation
+
+image::https://img.shields.io/badge/maven-central/v/{groupId}/{artifactId}[]
 
 This is a https://github.com/FasterXML/jackson[Jackson] extension to perform
 https://beanvalidation.org/2.0/[Java Bean Validation] during deserialization.
@@ -84,14 +88,21 @@ _during_ deserialization. This is where this module comes in.
 
 == Usage
 
-The module library is available on https://bintray.com/bintray/jcenter[JCenter].
+The module library is available on
+https://search.maven.org/artifact/org.unbroken-dome.jackson-bean-validation/jackson-bean-validation/{version}/bundle[Maven Central].
 
 Add the following dependency to your build script:
 
 [source,groovy,subs="+attributes"]
 .Gradle (build.gradle)
 ----
-implementation 'org.unbroken-dome.jackson-bean-validation:jackson-bean-validation:{version}'
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.unbroken-dome.jackson-bean-validation:jackson-bean-validation:{version}'
+}
 ----
 
 [source,xml,subs="+attributes"]
