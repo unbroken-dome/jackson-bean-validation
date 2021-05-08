@@ -328,7 +328,7 @@ However, for primitive types this behavior only applies if the deserialization f
 is enabled (it is disabled by default). Otherwise, `null` or missing values are mapped to the default value of the
 type (e.g. `0` for integers) even if the type is not nullable.
 
-I would recommend to enable `FAIL_ON_NULL_FOR_PRIMITIVES` when using Kotlin together with this module.
+I would recommend enabling `FAIL_ON_NULL_FOR_PRIMITIVES` when using Kotlin together with this module.
 
 
 === Late-init Properties
@@ -348,8 +348,18 @@ still be honored if present (for example, to customize the validation message).
 
 == Jackson Version Compatibility
 
-The module requires Jackson 2.9.x or higher; it has been tested to be compatible with all 2.9.x versions up to 2.9.9.
-It does not work with Jackson 2.8.x.
+The module requires Jackson 2.9.x or higher. It does not work with Jackson 2.8.x.
+
+Automated compatibility tests are run for the following Jackson versions:
+
+|===
+| Jackson major/minor | Tested compatibility
+
+| 2.9 | 2.9.0 -- 2.9.10
+| 2.10 | 2.10.0 -- 2.10.5
+| 2.11 | 2.11.0 -- 2.11.4
+| 2.12 | 2.12.0 -- 2.12.3
+|===
 
 
 == Limitations and Considerations
