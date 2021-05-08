@@ -74,8 +74,10 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+val jacksonCompatVersions = mapOf(
+    "2.9" to (0..10), "2.10" to (0..5), "2.11" to (0..4), "2.12" to (0..3)
+).flatMap { (majorMinor, patchVersions) -> patchVersions.map { "$majorMinor.$it" } }
 
-val jacksonCompatVersions: List<String> = (0..9).map { "2.9.$it" }
 for (compatVersion in jacksonCompatVersions) {
     val testConfiguration: Configuration = project.configurations.create("jacksonCompatTest_$compatVersion")
     testConfiguration.extendsFrom(configurations["testRuntimeClasspath"])
@@ -96,7 +98,6 @@ for (compatVersion in jacksonCompatVersions) {
         dependsOn(testTask)
     }
 }
-
 
 
 val sourcesJar by tasks.creating(Jar::class) {
