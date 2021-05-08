@@ -1,6 +1,6 @@
 plugins {
     `java-library`
-    kotlin("jvm") version "1.3.50"
+    kotlin("jvm") version "1.5.0"
     `maven-publish`
     id("org.unbroken-dome.test-sets") version "4.0.0"
 }
