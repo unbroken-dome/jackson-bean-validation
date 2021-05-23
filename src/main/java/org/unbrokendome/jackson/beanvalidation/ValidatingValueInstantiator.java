@@ -16,6 +16,7 @@ import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import javax.validation.ElementKind;
 import javax.validation.Path;
+import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import javax.validation.executable.ExecutableValidator;
 import java.io.IOException;
@@ -32,16 +33,21 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
     private final ValidatorFactory validatorFactory;
     private final BeanValidationFeatureSet features;
+    private final ConstructorValidatorFactory constructorValidatorFactory;
     private boolean validationEnabled = false;
 
 
     ValidatingValueInstantiator(
             StdValueInstantiator delegate, ValidatorFactory validatorFactory,
-            BeanValidationFeatureSet features
+            BeanValidationFeatureSet features,
+            @Nullable ConstructorValidatorFactory constructorValidatorFactory
     ) {
         super(delegate);
         this.validatorFactory = validatorFactory;
         this.features = features;
+        this.constructorValidatorFactory = constructorValidatorFactory != null
+                ? constructorValidatorFactory
+                : (factory, constructor, parameterValues) -> factory.getValidator();
     }
 
 
@@ -182,11 +188,11 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
         }
 
         Member creatorMember = getWithArgsCreator().getMember();
-        ExecutableValidator executableValidator = validatorFactory.getValidator().forExecutables();
 
         if (creatorMember instanceof Constructor) {
-            return (Set) executableValidator.validateConstructorParameters(
-                    (Constructor<?>) creatorMember, args);
+            Constructor constructor = (Constructor) creatorMember;
+            Validator validator = constructorValidatorFactory.getValidator(validatorFactory, constructor, args);
+            return validator.forExecutables().validateConstructorParameters(constructor, args);
 
         } else if (creatorMember instanceof Method) {
             // Bean validation doesn't support parameter validation for static methods :-(
