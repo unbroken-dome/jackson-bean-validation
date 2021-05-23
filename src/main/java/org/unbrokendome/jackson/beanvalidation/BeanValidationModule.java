@@ -1,7 +1,9 @@
 package org.unbrokendome.jackson.beanvalidation;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 
@@ -82,6 +84,19 @@ public final class BeanValidationModule extends Module {
                 } else {
                     return super.handleInstantiationProblem(ctxt, instClass, argument, t);
                 }
+            }
+
+            @Override
+            public boolean handleUnknownProperty(
+                    DeserializationContext ctxt, JsonParser p, JsonDeserializer<?> deserializer,
+                    Object beanOrClass, String propertyName
+            ) throws IOException {
+
+                if (beanOrClass instanceof InvalidObject) {
+                    p.skipChildren();
+                    return true;
+                }
+                return super.handleUnknownProperty(ctxt, p, deserializer, beanOrClass, propertyName);
             }
         });
     }
