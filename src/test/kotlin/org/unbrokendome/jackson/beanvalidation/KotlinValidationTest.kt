@@ -144,7 +144,7 @@ class KotlinValidationTest : AbstractValidationTest() {
 
     private class NestedListArgumentsProvider : ArgumentsProvider {
         override fun provideArguments(context: ExtensionContext): Stream<Arguments> = Stream.of(
-                Arguments.of("nested[0].value", """{ "nested": [{}] }"""),
+                Arguments.of("nested[0].value", """{ "nested": [{}, {"value":"v1"}] }"""),
                 Arguments.of("nested[1].value", """{ "nested": [{"value":"test"},{}] }"""),
                 Arguments.of("nested[2].value", """{ "nested": [{"value":"1"},{"value":"2"},{}] }""")
         )

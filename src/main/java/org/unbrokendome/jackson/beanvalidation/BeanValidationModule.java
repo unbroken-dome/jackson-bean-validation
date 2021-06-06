@@ -1,10 +1,13 @@
 package org.unbrokendome.jackson.beanvalidation;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 
+import javax.annotation.Nullable;
 import javax.validation.ConstraintViolationException;
 import javax.validation.ValidatorFactory;
 import java.io.IOException;
@@ -15,6 +18,7 @@ public final class BeanValidationModule extends Module {
 
     private final ValidatorFactory validatorFactory;
     private final EnumSet<BeanValidationFeature> features;
+    @Nullable private ConstructorValidatorFactory constructorValidatorFactory;
 
 
     public BeanValidationModule(ValidatorFactory validatorFactory) {
@@ -56,13 +60,19 @@ public final class BeanValidationModule extends Module {
         return this;
     }
 
+    public BeanValidationModule setConstructorValidatorFactory(@Nullable ConstructorValidatorFactory factory) {
+        this.constructorValidatorFactory = factory;
+        return this;
+    }
+
 
     @Override
     public void setupModule(SetupContext context) {
 
         BeanValidationFeatureSet featureSet = new BeanValidationFeatureSet(features);
 
-        context.addBeanDeserializerModifier(new ValidationBeanDeserializerModifier(validatorFactory, featureSet));
+        context.addBeanDeserializerModifier(new ValidationBeanDeserializerModifier(
+                validatorFactory, featureSet, constructorValidatorFactory));
 
         context.addDeserializationProblemHandler(new DeserializationProblemHandler() {
             @Override
@@ -74,6 +84,19 @@ public final class BeanValidationModule extends Module {
                 } else {
                     return super.handleInstantiationProblem(ctxt, instClass, argument, t);
                 }
+            }
+
+            @Override
+            public boolean handleUnknownProperty(
+                    DeserializationContext ctxt, JsonParser p, JsonDeserializer<?> deserializer,
+                    Object beanOrClass, String propertyName
+            ) throws IOException {
+
+                if (beanOrClass instanceof InvalidObject) {
+                    p.skipChildren();
+                    return true;
+                }
+                return super.handleUnknownProperty(ctxt, p, deserializer, beanOrClass, propertyName);
             }
         });
     }
