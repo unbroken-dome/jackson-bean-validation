@@ -1,6 +1,9 @@
 package org.unbrokendome.jackson.beanvalidation;
 
+import com.fasterxml.jackson.core.JsonStreamContext;
+
 import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -12,18 +15,18 @@ import java.util.Set;
  */
 final class InvalidObject {
 
-    private final Class<?> type;
     private Set<ConstraintViolation<?>> violations;
+    private int indexInArray;
 
 
-    InvalidObject(Class<?> type, Set<ConstraintViolation<?>> violations) {
-        this.type = type;
-        this.violations = new LinkedHashSet<>(violations);
+    InvalidObject(ConstraintViolationException ex, JsonStreamContext parsingContext) {
+        this.violations = new LinkedHashSet<>(ex.getConstraintViolations());
+        this.indexInArray = PropertyPathUtils.getIndexInArray(parsingContext);
     }
 
 
     Class<?> getType() {
-        return type;
+        return violations.iterator().next().getRootBeanClass();
     }
 
 
@@ -31,6 +34,9 @@ final class InvalidObject {
         return Collections.unmodifiableSet(violations);
     }
 
+    int getIndexInArray() {
+        return indexInArray;
+    }
 
     void addAdditionalViolations(Set<? extends ConstraintViolation<?>> violations) {
         this.violations.addAll(violations);

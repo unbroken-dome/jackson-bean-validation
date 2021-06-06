@@ -176,5 +176,17 @@ class KotlinValidationTest : AbstractValidationTest() {
             assertThat(violations).hasSize(1)
             assertThat(violations).hasViolation<JsonRequired>(violationPath)
         }
+
+        @Test
+        fun `should report violation on all records in @Valid-annotated nested list`() {
+
+            val json = """{ "nested": [{}, {"value":"2"}, {"value":null}, {"value":"4"}] }"""
+
+            val violations = assertViolationsOnDeserialization<ValidatedDataWithValidNestedList>(json)
+
+            assertThat(violations).hasSize(2)
+            assertThat(violations).hasViolation<JsonRequired>("nested[0].value")
+            assertThat(violations).hasViolation<NotNull>("nested[2].value")
+        }
     }
 }
