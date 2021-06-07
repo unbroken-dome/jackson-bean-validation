@@ -3,10 +3,12 @@ package org.unbrokendome.jackson.beanvalidation
 import assertk.assertThat
 import assertk.assertions.hasSize
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -135,6 +137,35 @@ class KotlinValidationTest : AbstractValidationTest() {
 
         assertNoViolationsOnDeserialization<BeanWithLateinitVarProp>(json)
     }
+
+
+    @Test
+    fun `should throw UnrecognizedPropertyException for object`() {
+
+        val json = """{ "left": "abc", "right": 42, "other": "o" }"""
+
+        assertThrows<UnrecognizedPropertyException> {
+            objectMapper.readValue(json, BeanWithNotNullCreatorProps::class.java)
+        }
+    }
+
+
+    @JsonValidated
+    data class Container(val list: List<Item>)
+
+    @JsonValidated
+    data class Item(val value: String)
+
+    @Test
+    fun `should throw UnrecognizedPropertyException for nested list`() {
+
+        val json = """{ "list": [{"value": "test", "other": "o"}, {"value": "abc"}] }"""
+
+        assertThrows<UnrecognizedPropertyException> {
+            objectMapper.readValue(json, Container::class.java)
+        }
+    }
+
 
     @JsonValidated
     data class ValidatedDataWithValidNestedList(val nested: List<SimpleData>)
