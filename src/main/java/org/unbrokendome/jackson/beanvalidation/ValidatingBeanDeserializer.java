@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.deser.*;
 import com.fasterxml.jackson.databind.deser.impl.NullsConstantProvider;
 import com.fasterxml.jackson.databind.deser.impl.PropertyBasedCreator;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
 import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtils;
@@ -21,6 +22,7 @@ import javax.validation.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.metadata.ConstraintDescriptor;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -483,8 +485,7 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
                     } catch (ConstraintViolationException ex) {
                         // Retrieve any violation from the set, to find out which concrete type was
                         // being instantiated
-                        ConstraintViolation<?> violation = ex.getConstraintViolations().iterator().next();
-                        bean = new InvalidObject(violation.getRootBeanClass(), ex.getConstraintViolations());
+                        bean = new InvalidObject(ex, p.getParsingContext());
 
                     } catch (Exception e) {
                         bean = wrapInstantiationProblem(e, ctxt);
@@ -506,6 +507,10 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
                     }
                     // or just clean?
                     bean = deserialize(p, ctxt, bean);
+
+                    if (p.getParsingContext().inArray()) {
+                        return bean;
+                    }
                     return unwrapInvalidObject(bean);
                 }
                 continue;
@@ -541,6 +546,12 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
         Object bean = null;
         try {
             bean = creator.build(ctxt, buffer);
+        } catch (ConstraintViolationException e) {
+            if (p.getParsingContext().inArray()) {
+                bean = new InvalidObject(e, p.getParsingContext());
+            } else {
+                wrapInstantiationProblem(e, ctxt);
+            }
         } catch (Exception e) {
             wrapInstantiationProblem(e, ctxt);
             assert false; // never gets here
@@ -581,7 +592,22 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
                 String beanPropertyName = PropertyUtils.getPropertyNameFromMember(prop.getMember());
                 propertyViolations =
                         (Set) validator.validateValue(handledType(), beanPropertyName, value);
+            } else if (value instanceof Collection) {
+                propertyViolations = (Set<ConstraintViolation<?>>) ((Collection) value).stream()
+                        .filter(InvalidObject.class::isInstance)
+                        .flatMap(item -> {
+                            InvalidObject invalidObject = (InvalidObject) item;
+                            Path basePath = PropertyPathUtils.constructPropertyPath(
+                                    prop, features, invalidObject.getIndexInArray());
+                            return invalidObject.getViolations().stream()
+                                    .map(violation -> ConstraintViolationUtils.withBasePath(
+                                            violation, bean, (Class) handledType(), basePath));
+                        })
+                        .collect(Collectors.toSet());
             }
+
+        } catch (UnrecognizedPropertyException ex) {
+            wrapAndThrow(ex, handledType(), prop.getName(), ctxt);
 
         } catch (MismatchedInputException ex) {
             propertyViolations = Collections.singleton(handleMismatchedInput(p, bean, prop));

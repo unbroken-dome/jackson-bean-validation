@@ -27,6 +27,11 @@ final class PropertyPathUtils {
     @Nonnull
     static Path constructPropertyPath(SettableBeanProperty prop, BeanValidationFeatureSet features,
                                       @Nullable JsonStreamContext parsingContext) {
+        return constructPropertyPath(prop, features, getIndexInArray(parsingContext));
+    }
+
+    @Nonnull
+    static Path constructPropertyPath(SettableBeanProperty prop, BeanValidationFeatureSet features, int indexInArray) {
 
         PathBuilder propertyPathBuilder = PathBuilder.create()
                 .appendBeanNode();
@@ -39,13 +44,8 @@ final class PropertyPathUtils {
             propertyName = prop.getName();
         }
 
-        if (parsingContext != null && parsingContext.inArray()) {
-            if (parsingContext.hasCurrentIndex()) {
-                propertyName += "[" + parsingContext.getCurrentIndex() + "]";
-            } else if (parsingContext.getParent().getCurrentValue() instanceof Collection) {
-                Collection currentValue = (Collection) parsingContext.getParent().getCurrentValue();
-                propertyName += "[" + currentValue.size() + "]";
-            }
+        if (indexInArray >= 0) {
+            propertyName += "[" + indexInArray + "]";
         }
 
         if (prop instanceof CreatorProperty &&
@@ -61,5 +61,18 @@ final class PropertyPathUtils {
         }
 
         return propertyPathBuilder.build();
+    }
+
+    static int getIndexInArray(@Nullable JsonStreamContext parsingContext) {
+        int index = -1;
+        if (parsingContext != null && parsingContext.inArray()) {
+            if (parsingContext.hasCurrentIndex()) {
+                index = parsingContext.getCurrentIndex();
+            } else if (parsingContext.getParent().getCurrentValue() instanceof Collection) {
+                Collection currentValue = (Collection) parsingContext.getParent().getCurrentValue();
+                index = currentValue.size();
+            }
+        }
+        return index;
     }
 }
