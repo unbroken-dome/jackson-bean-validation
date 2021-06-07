@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.deser.*;
 import com.fasterxml.jackson.databind.deser.impl.NullsConstantProvider;
 import com.fasterxml.jackson.databind.deser.impl.PropertyBasedCreator;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
 import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtils;
@@ -604,6 +605,9 @@ class ValidatingBeanDeserializer extends BeanDeserializer {
                         })
                         .collect(Collectors.toSet());
             }
+
+        } catch (UnrecognizedPropertyException ex) {
+            wrapAndThrow(ex, handledType(), prop.getName(), ctxt);
 
         } catch (MismatchedInputException ex) {
             propertyViolations = Collections.singleton(handleMismatchedInput(p, bean, prop));
