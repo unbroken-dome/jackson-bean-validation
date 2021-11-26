@@ -27,6 +27,8 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
@@ -215,7 +217,6 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
         return true;
     }
 
-
     @Nonnull
     private ConstraintViolation<?> mapParameterViolation(
             ConstraintViolation<?> violation,
@@ -233,6 +234,12 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
             } else {
                 propertyName = constructorArguments[parameterIndex].getName();
             }
+
+            Matcher containerIndex = Pattern.compile("\\[.*\\]").matcher(parameterNode.toString());
+            if (containerIndex.find()) {
+                propertyName += containerIndex.group();
+            }
+
             Path newPath = PathBuilder.create()
                     .appendBeanNode()
                     .appendProperty(propertyName)

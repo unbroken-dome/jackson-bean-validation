@@ -16,7 +16,13 @@ import org.junit.jupiter.params.provider.ArgumentsProvider
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
 import java.util.stream.Stream
+import javax.validation.Constraint
+import javax.validation.ConstraintValidator
+import javax.validation.ConstraintValidatorContext
+import javax.validation.Payload
 import javax.validation.constraints.NotNull
+import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
+import kotlin.reflect.KClass
 
 
 class KotlinValidationTest : AbstractValidationTest() {
@@ -219,5 +225,40 @@ class KotlinValidationTest : AbstractValidationTest() {
             assertThat(violations).hasViolation<JsonRequired>("nested[0].value")
             assertThat(violations).hasViolation<NotNull>("nested[2].value")
         }
+    }
+
+
+    @JsonValidated
+    data class ContainerIndexBean(@UniqueData val nested: List<SimpleData>)
+
+    @Target(VALUE_PARAMETER)
+    @Constraint(validatedBy = [UniqueDataValidator::class])
+    annotation class UniqueData(
+        val message: String = "Duplicated value",
+        val groups: Array<KClass<*>> = [],
+        val payload: Array<KClass<out Payload>> = [],
+    )
+
+    class UniqueDataValidator : ConstraintValidator<UniqueData, List<SimpleData>> {
+        override fun isValid(list: List<SimpleData>, context: ConstraintValidatorContext): Boolean {
+            context.disableDefaultConstraintViolation()
+            context.buildConstraintViolationWithTemplate("Duplicated value")
+                .addPropertyNode("value")
+                .inContainer(List::class.java, 0)
+                .inIterable().atIndex(1)
+                .addConstraintViolation()
+            return false
+        }
+    }
+
+    @Test
+    fun `should report violation on container element node`() {
+
+        val json = """{ "nested": [{"value":"test"}, {"value":"test"}] }"""
+
+        val violations = assertViolationsOnDeserialization<ContainerIndexBean>(json)
+
+        assertThat(violations).hasSize(1)
+        assertThat(violations).hasViolation<UniqueData>("nested[1].value")
     }
 }
