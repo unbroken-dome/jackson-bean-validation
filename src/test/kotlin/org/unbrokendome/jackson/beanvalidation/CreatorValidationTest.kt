@@ -6,8 +6,8 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.junit.jupiter.api.Test
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
-import javax.validation.Valid
-import javax.validation.constraints.NotNull
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotNull
 
 
 class CreatorValidationTest : AbstractValidationTest() {

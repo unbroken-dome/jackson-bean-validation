@@ -1,7 +1,7 @@
 package org.unbrokendome.jackson.beanvalidation.violation;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.ValidationException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ValidationException;
 
 
 abstract class AbstractConstraintViolation<T> implements ConstraintViolation<T> {

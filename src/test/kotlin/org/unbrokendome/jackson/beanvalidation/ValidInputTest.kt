@@ -9,7 +9,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
 import java.time.LocalDate
-import javax.validation.constraints.NotNull
+import jakarta.validation.constraints.NotNull
 
 
 class ValidInputTest : AbstractValidationTest() {

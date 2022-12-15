@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 
-import javax.validation.ConstraintViolationException;
-import javax.validation.ValidatorFactory;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ValidatorFactory;
 import java.io.IOException;
 import java.util.EnumSet;
 

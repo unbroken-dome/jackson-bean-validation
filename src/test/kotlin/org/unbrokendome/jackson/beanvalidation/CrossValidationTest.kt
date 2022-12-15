@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.junit.jupiter.api.Test
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
-import javax.validation.constraints.AssertTrue
+import jakarta.validation.constraints.AssertTrue
 
 
 class CrossValidationTest : AbstractValidationTest() {

@@ -4,7 +4,7 @@ import assertk.Assert
 import assertk.assertions.isInstanceOf
 import assertk.assertions.support.expected
 import assertk.assertions.support.show
-import javax.validation.ConstraintViolation
+import jakarta.validation.ConstraintViolation
 
 
 inline fun <reified C : Any> Assert<ConstraintViolation<*>>.hasConstraintClass() =

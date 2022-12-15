@@ -3,7 +3,7 @@ package org.unbrokendome.jackson.beanvalidation;
 import com.fasterxml.jackson.databind.deser.SettableBeanProperty;
 import com.fasterxml.jackson.databind.deser.impl.FieldProperty;
 
-import javax.validation.Validator;
+import jakarta.validation.Validator;
 
 
 final class ValidationAwareFieldProperty extends ValidationAwareBeanProperty<FieldProperty> {

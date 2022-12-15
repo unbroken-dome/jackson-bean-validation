@@ -8,7 +8,7 @@ import org.unbrokendome.jackson.beanvalidation.path.PathBuilder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.Path;
+import jakarta.validation.Path;
 import java.lang.reflect.Constructor;
 import java.util.Collection;
 
