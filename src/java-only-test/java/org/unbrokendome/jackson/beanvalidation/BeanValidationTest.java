@@ -10,10 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.unbrokendome.jackson.beanvalidation.BeanValidationModule;
 import org.unbrokendome.jackson.beanvalidation.JsonValidated;
 
-import javax.validation.ConstraintViolationException;
-import javax.validation.Validation;
-import javax.validation.ValidatorFactory;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.NotNull;
 
 class BeanValidationTest {
 

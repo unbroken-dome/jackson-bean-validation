@@ -17,9 +17,9 @@ import org.unbrokendome.jackson.beanvalidation.violation.ConstraintViolationUtil
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.*;
-import javax.validation.constraints.NotNull;
-import javax.validation.metadata.ConstraintDescriptor;
+import jakarta.validation.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.metadata.ConstraintDescriptor;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;

@@ -2,8 +2,8 @@ package org.unbrokendome.jackson.beanvalidation.path;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.ElementKind;
-import javax.validation.Path;
+import jakarta.validation.ElementKind;
+import jakarta.validation.Path;
 import java.util.Iterator;
 
 

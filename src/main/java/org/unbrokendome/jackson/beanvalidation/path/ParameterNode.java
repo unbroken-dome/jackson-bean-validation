@@ -1,8 +1,8 @@
 package org.unbrokendome.jackson.beanvalidation.path;
 
 import javax.annotation.Nonnull;
-import javax.validation.ElementKind;
-import javax.validation.Path;
+import jakarta.validation.ElementKind;
+import jakarta.validation.Path;
 
 
 final class ParameterNode extends AbstractNode implements Path.ParameterNode {

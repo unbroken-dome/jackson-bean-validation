@@ -1,7 +1,7 @@
 package org.unbrokendome.jackson.beanvalidation;
 
-import javax.validation.Payload;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Payload;
+import jakarta.validation.constraints.NotNull;
 
 
 class NotNullConstraintDescriptor extends AbstractConstraintDescriptor<NotNull> {

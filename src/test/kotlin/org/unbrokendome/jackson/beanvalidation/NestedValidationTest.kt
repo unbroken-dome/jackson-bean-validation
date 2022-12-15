@@ -12,8 +12,8 @@ import org.junit.jupiter.params.provider.ArgumentsProvider
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.unbrokendome.jackson.beanvalidation.assertions.hasViolation
 import java.util.stream.Stream
-import javax.validation.Valid
-import javax.validation.constraints.NotNull
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotNull
 
 
 class NestedValidationTest : AbstractValidationTest() {

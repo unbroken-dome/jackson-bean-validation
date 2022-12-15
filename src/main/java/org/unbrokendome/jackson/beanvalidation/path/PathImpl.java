@@ -1,7 +1,7 @@
 package org.unbrokendome.jackson.beanvalidation.path;
 
 import javax.annotation.Nonnull;
-import javax.validation.Path;
+import jakarta.validation.Path;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
